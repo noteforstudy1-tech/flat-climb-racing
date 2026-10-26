@@ -1,155 +1,87 @@
 /**
- * Flat Climb Racing - Car Renderer & Name Engraving System
- * Bauhaus flat geometric car styling with dynamic nameplate engraving.
+ * Flat Climb Racing - Car Renderer (v2)
+ * Hill Climb Racing–style silhouette with Bauhaus flat colour treatment.
  * Made by Raghav Parashar
  */
 
-// Defensive polyfill for CanvasRenderingContext2D.roundRect
-if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
-  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r = 0) {
-    if (typeof r === 'number') r = [r, r, r, r];
-    const [tl, tr, br, bl] = r;
-    this.moveTo(x + tl, y);
-    this.lineTo(x + w - tr, y);
-    this.quadraticCurveTo(x + w, y, x + w, y + tr);
-    this.lineTo(x + w, y + h - br);
-    this.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
-    this.lineTo(x + bl, y + h);
-    this.quadraticCurveTo(x, y + h, x, y + h - bl);
-    this.lineTo(x, y + tl);
-    this.quadraticCurveTo(x, y, x + tl, y);
-    return this;
-  };
-}
+// Polyfill roundRect for older browsers
+(function () {
+  if (typeof CanvasRenderingContext2D === 'undefined') return;
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+      r = Math.min(r || 0, w / 2, h / 2);
+      this.beginPath();
+      this.moveTo(x + r, y);
+      this.arcTo(x + w, y,     x + w, y + h, r);
+      this.arcTo(x + w, y + h, x,     y + h, r);
+      this.arcTo(x,     y + h, x,     y,     r);
+      this.arcTo(x,     y,     x + w, y,     r);
+      this.closePath();
+      return this;
+    };
+  }
+})();
+
+/* ── Livery definitions ─────────────────────────────────────────────── */
+const LIVERIES = {
+  blue:   { chassis:'#2B55FF', accent:'#FFB703', wheel:'#FFB703',  helmet:'#FF4742', plateBg:'#FFB703', plateText:'#0F1322' },
+  red:    { chassis:'#FF4742', accent:'#FFFFFF', wheel:'#FFFFFF',  helmet:'#FFB703', plateBg:'#0F1322', plateText:'#FFFFFF' },
+  yellow: { chassis:'#FFB703', accent:'#2B55FF', wheel:'#2B55FF',  helmet:'#00D06C', plateBg:'#2B55FF', plateText:'#FFFFFF' },
+  green:  { chassis:'#00D06C', accent:'#FFB703', wheel:'#FFB703',  helmet:'#2B55FF', plateBg:'#0F1322', plateText:'#62FFAE' },
+  dark:   { chassis:'#1A1E30', accent:'#FF4742', wheel:'#FF4742',  helmet:'#FFB703', plateBg:'#FF4742', plateText:'#FFFFFF' },
+};
 
 class CarRenderer {
   constructor() {
-    this.particles = [];
-    this.floatingTexts = [];
+    this.particles    = [];
+    this.floatTexts   = [];
   }
 
-  // Predefined flat color liveries
-  static LIVERIES = {
-    blue: {
-      id: 'blue',
-      name: 'Royal Speedster',
-      chassis: '#2B55FF',   // Bauhaus Royal Blue
-      accent: '#FFB703',    // Marigold
-      plateBg: '#FFB703',   // Gold plate
-      plateText: '#0F1322', // Dark navy text
-      cockpit: '#171C30',
-      wheelRims: '#FFB703',
-      helmet: '#FF4742'
-    },
-    red: {
-      id: 'red',
-      name: 'Coral Blaze',
-      chassis: '#FF4742',   // Coral Red
-      accent: '#FFFFFF',
-      plateBg: '#0F1322',   // Obsidian plate
-      plateText: '#FFFFFF', // White text
-      cockpit: '#171C30',
-      wheelRims: '#FFFFFF',
-      helmet: '#FFB703'
-    },
-    yellow: {
-      id: 'yellow',
-      name: 'Marigold Gold',
-      chassis: '#FFB703',   // Marigold Yellow
-      accent: '#2B55FF',
-      plateBg: '#2B55FF',   // Royal blue plate
-      plateText: '#FFFFFF',
-      cockpit: '#0F1322',
-      wheelRims: '#2B55FF',
-      helmet: '#00D06C'
-    },
-    green: {
-      id: 'green',
-      name: 'Emerald Drift',
-      chassis: '#00D06C',   // Emerald Green
-      accent: '#FFB703',
-      plateBg: '#0F1322',
-      plateText: '#62FFAE',
-      cockpit: '#0F1322',
-      wheelRims: '#FFB703',
-      helmet: '#2B55FF'
-    },
-    dark: {
-      id: 'dark',
-      name: 'Stealth Onyx',
-      chassis: '#1A1E30',   // Deep Obsidian
-      accent: '#FF4742',
-      plateBg: '#FF4742',   // Coral red plate
-      plateText: '#FFFFFF',
-      cockpit: '#0D0F1A',
-      wheelRims: '#FF4742',
-      helmet: '#FFB703'
-    }
-  };
+  static get LIVERIES() { return LIVERIES; }
 
-  addExhaust(x, y, angle) {
-    const spread = (Math.random() - 0.5) * 0.4;
-    const speed = 40 + Math.random() * 30;
-    const launchAngle = angle + Math.PI + spread;
+  /* ─── PARTICLES ───────────────────────────────────────────────────── */
+  spawnExhaust(worldX, worldY, carAngle) {
+    const angle = carAngle + Math.PI + (Math.random() - 0.5) * 0.5;
+    const spd   = 35 + Math.random() * 30;
     this.particles.push({
-      x: x,
-      y: y,
-      vx: Math.cos(launchAngle) * speed,
-      vy: Math.sin(launchAngle) * speed - 15,
-      size: 4 + Math.random() * 4,
-      maxSize: 14,
-      alpha: 0.8,
-      life: 0.35,
-      color: Math.random() > 0.4 ? '#FFFFFF' : '#FFB703'
+      x: worldX, y: worldY,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd - 18,
+      r: 3 + Math.random() * 3,
+      life: 1, maxLife: 1,
+      col: Math.random() > 0.4 ? 'rgba(255,255,255,' : 'rgba(255,183,3,',
     });
   }
 
   addFloatingText(text, x, y, color = '#FFB703', size = 16) {
-    this.floatingTexts.push({
-      text: text,
-      x: x,
-      y: y,
-      vy: -55,
-      alpha: 1.0,
-      life: 0.9,
-      color: color,
-      size: size
-    });
+    this.floatTexts.push({ text, x, y, vy: -60, alpha: 1, life: 1, color, size });
   }
 
   updateParticles(dt) {
-    // Update exhaust particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.life -= dt;
-      p.size += (p.maxSize - p.size) * (dt * 5);
-      p.alpha = Math.max(0, p.life / 0.35);
-      if (p.life <= 0) {
-        this.particles.splice(i, 1);
-      }
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vy += 200 * dt;
+      p.r  += 4 * dt;
+      p.life -= dt / p.maxLife * 0.9;
+      if (p.life <= 0) this.particles.splice(i, 1);
     }
-
-    // Update floating pop texts
-    for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
-      const ft = this.floatingTexts[i];
-      ft.y += ft.vy * dt;
-      ft.life -= dt;
-      ft.alpha = Math.max(0, ft.life / 0.9);
-      if (ft.life <= 0) {
-        this.floatingTexts.splice(i, 1);
-      }
+    for (let i = this.floatTexts.length - 1; i >= 0; i--) {
+      const f = this.floatTexts[i];
+      f.y    += f.vy * dt;
+      f.life -= dt * 0.9;
+      f.alpha = Math.max(0, f.life);
+      if (f.life <= 0) this.floatTexts.splice(i, 1);
     }
   }
 
   drawParticles(ctx) {
     ctx.save();
     for (const p of this.particles) {
-      ctx.globalAlpha = p.alpha;
-      ctx.fillStyle = p.color;
+      ctx.globalAlpha = Math.max(0, p.life) * 0.8;
+      ctx.fillStyle   = p.col + Math.max(0, p.life) + ')';
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
@@ -157,354 +89,364 @@ class CarRenderer {
 
   drawFloatingTexts(ctx) {
     ctx.save();
-    for (const ft of this.floatingTexts) {
-      ctx.globalAlpha = ft.alpha;
-      ctx.fillStyle = ft.color;
-      ctx.strokeStyle = '#0F1322';
-      ctx.lineWidth = 4;
-      ctx.font = `900 ${ft.size}px "Space Grotesk", sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.strokeText(ft.text, ft.x, ft.y);
-      ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    for (const f of this.floatTexts) {
+      ctx.globalAlpha  = f.alpha;
+      ctx.font         = `900 ${f.size}px "Space Grotesk",sans-serif`;
+      ctx.strokeStyle  = '#0F1322';
+      ctx.lineWidth    = 4;
+      ctx.strokeText(f.text, f.x, f.y);
+      ctx.fillStyle    = f.color;
+      ctx.fillText(f.text, f.x, f.y);
     }
     ctx.restore();
   }
 
+  /* ─── MAIN CAR RENDER ─────────────────────────────────────────────── */
   /**
-   * Main render function for a car
+   * Render the car at world position (cx, cy) with given chassis angle.
+   * w1 = rear wheel, w2 = front wheel — each has { x, y, angle }
    */
-  renderCar(ctx, x, y, angle, w1, w2, options = {}) {
+  renderCar(ctx, cx, cy, angle, w1, w2, opts = {}) {
     const {
-      engravedName = 'RAGHAV',
-      liveryKey = 'blue',
-      isGhost = false,
-      isPlayer = true,
-      tagText = null,
-      emote = null,
-      gas = false
-    } = options;
+      engravedName = 'RACER',
+      liveryKey    = 'blue',
+      isGhost      = false,
+      isPlayer     = true,
+      showTag      = false,
+      tagText      = '',
+      emote        = null,
+      gas          = false,
+    } = opts;
 
-    const livery = CarRenderer.LIVERIES[liveryKey] || CarRenderer.LIVERIES.blue;
+    const liv = LIVERIES[liveryKey] || LIVERIES.blue;
 
     ctx.save();
-    if (isGhost) {
-      ctx.globalAlpha = 0.85; // Remote player styling
-    }
+    if (isGhost) ctx.globalAlpha = 0.82;
 
-    // 1. Suspension Struts (Mount to Wheel Hubs)
-    this.drawSuspension(ctx, x, y, angle, w1, w2, livery);
+    /* Wheels (drawn first so body overlaps them slightly) */
+    this._drawWheel(ctx, w1.x, w1.y, w1.angle, liv);
+    this._drawWheel(ctx, w2.x, w2.y, w2.angle, liv);
 
-    // 2. Wheels
-    this.drawWheel(ctx, w1.x, w1.y, w1.angle, livery);
-    this.drawWheel(ctx, w2.x, w2.y, w2.angle, livery);
-
-    // 3. Chassis & Engraved Name Plate
+    /* Body */
     ctx.save();
-    ctx.translate(x, y);
+    ctx.translate(cx, cy);
     ctx.rotate(angle);
 
-    // Exhaust pipe (Rear left)
-    ctx.fillStyle = '#6B7280';
-    ctx.fillRect(-44, -2, 10, 6);
-    ctx.strokeStyle = '#0F1322';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(-44, -2, 10, 6);
-
-    if (gas) {
-      // Spawn exhaust particles relative to car
-      const exhaustWorldX = x + Math.cos(angle) * -44 - Math.sin(angle) * 1;
-      const exhaustWorldY = y + Math.sin(angle) * -44 + Math.cos(angle) * 1;
-      if (Math.random() > 0.3) {
-        this.addExhaust(exhaustWorldX, exhaustWorldY, angle);
-      }
+    // Exhaust particles
+    if (gas && Math.random() > 0.4) {
+      const ex = cx + Math.cos(angle) * -44;
+      const ey = cy + Math.sin(angle) * -44 + Math.cos(angle) * 6;
+      this.spawnExhaust(ex, ey, angle);
     }
 
-    // Driver Helmet & Visor
-    this.drawDriver(ctx, livery);
+    this._drawCarBody(ctx, liv, engravedName);
 
-    // Roll Cage / Roof Pillars
-    ctx.strokeStyle = '#0F1322';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(-16, -14);
-    ctx.lineTo(-4, -32);
-    ctx.lineTo(20, -32);
-    ctx.lineTo(26, -14);
-    ctx.stroke();
+    ctx.restore(); // body transform
 
-    // Windshield (Bauhaus cyan tinted glass)
-    ctx.fillStyle = 'rgba(98, 255, 255, 0.4)';
-    ctx.beginPath();
-    ctx.moveTo(-2, -30);
-    ctx.lineTo(18, -30);
-    ctx.lineTo(24, -14);
-    ctx.lineTo(0, -14);
-    ctx.closePath();
-    ctx.fill();
+    /* Overhead tag + emote */
+    if (showTag) this._drawNameTag(ctx, cx, cy - 60, tagText, isPlayer);
+    if (emote)   this._drawEmote(ctx, cx, cy - 92, emote);
 
-    // Main Car Body (Geometric Bauhaus flat silhouette)
-    ctx.fillStyle = livery.chassis;
-    ctx.beginPath();
-    ctx.moveTo(-42, 6);   // Rear bumper
-    ctx.lineTo(-42, -12); // Rear tail
-    ctx.lineTo(-30, -14); // Spoiler mount
-    ctx.lineTo(-12, -14); // Rear cockpit base
-    ctx.lineTo(0, -28);   // Windshield slope
-    ctx.lineTo(20, -28);  // Roof line
-    ctx.lineTo(34, -10);  // Hood slope
-    ctx.lineTo(44, -6);   // Nose front
-    ctx.lineTo(44, 6);    // Front spoiler
-    ctx.lineTo(32, 6);    // Front wheel arch right
-    ctx.arc(24, 6, 12, 0, Math.PI, true);  // Front wheel arch
-    ctx.lineTo(-14, 6);   // Underside
-    ctx.arc(-24, 6, 12, 0, Math.PI, true); // Rear wheel arch
-    ctx.closePath();
-    ctx.fill();
-
-    // Bold Outline (Bauhaus cartoon-grotesk stroke)
-    ctx.strokeStyle = '#0F1322';
-    ctx.lineWidth = 3.5;
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-
-    // Rear Aero Wing / Spoiler
-    ctx.fillStyle = livery.accent;
-    ctx.beginPath();
-    ctx.rect(-44, -22, 16, 5);
-    ctx.fill();
-    ctx.strokeStyle = '#0F1322';
-    ctx.lineWidth = 2.5;
-    ctx.strokeRect(-44, -22, 16, 5);
-
-    // Front Headlight (Geometric bright circle/square)
-    ctx.fillStyle = '#FFBE00';
-    ctx.fillRect(40, -5, 4, 7);
-    ctx.strokeStyle = '#0F1322';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(40, -5, 4, 7);
-
-    // Accent Racing Stripe
-    ctx.fillStyle = livery.accent;
-    ctx.fillRect(-28, -6, 56, 3.5);
-
-    // ==========================================
-    // THE CAR ENGRAVING PLATE (Custom Racer Name)
-    // ==========================================
-    this.drawEngravedPlate(ctx, engravedName, livery);
-
-    ctx.restore(); // Restore car transform
-
-    // 4. Overhead Name Tag / Multiplayer Badge
-    if (tagText || !isPlayer) {
-      this.drawNameTag(ctx, x, y - 52, tagText || engravedName, isPlayer);
-    }
-
-    // 5. Speech Bubble / Emote
-    if (emote) {
-      this.drawEmoteBubble(ctx, x, y - 82, emote);
-    }
-
-    ctx.restore();
+    ctx.restore(); // global alpha
   }
 
-  drawSuspension(ctx, carX, carY, angle, w1, w2, livery) {
-    const cosA = Math.cos(angle);
-    const sinA = Math.sin(angle);
+  /* ─── HILL CLIMB RACING–STYLE CAR BODY ───────────────────────────── */
+  _drawCarBody(ctx, liv, name) {
+    const sw = '#0F1322';           // stroke / outline colour
 
-    // Mount points
-    const m1X = carX - cosA * 28 + sinA * 6;
-    const m1Y = carY - sinA * 28 - cosA * 6;
-    const m2X = carX + cosA * 28 + sinA * 6;
-    const m2Y = carY + sinA * 28 - cosA * 6;
-
-    ctx.save();
-    ctx.strokeStyle = '#0F1322';
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
+    /* ── 1. FRAME / ROLL CAGE ── */
+    ctx.strokeStyle = sw;
+    ctx.lineWidth   = 5;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
 
     // Rear strut
     ctx.beginPath();
-    ctx.moveTo(m1X, m1Y);
-    ctx.lineTo(w1.x, w1.y);
+    ctx.moveTo(-24, 2);
+    ctx.lineTo(-28, -28);
     ctx.stroke();
 
-    // Front strut
+    // Front windscreen frame
     ctx.beginPath();
-    ctx.moveTo(m2X, m2Y);
-    ctx.lineTo(w2.x, w2.y);
+    ctx.moveTo(8, 2);
+    ctx.lineTo(10, -30);
+    ctx.lineTo(32, -30);
+    ctx.lineTo(34, -10);
     ctx.stroke();
 
-    // Spring coils (Bauhaus gold accent)
-    ctx.strokeStyle = livery.accent;
-    ctx.lineWidth = 3;
+    // Roof bar
     ctx.beginPath();
-    ctx.moveTo((m1X + w1.x) / 2 - 4, (m1Y + w1.y) / 2 - 2);
-    ctx.lineTo((m1X + w1.x) / 2 + 4, (m1Y + w1.y) / 2 + 2);
-    ctx.moveTo((m2X + w2.x) / 2 - 4, (m2Y + w2.y) / 2 - 2);
-    ctx.lineTo((m2X + w2.x) / 2 + 4, (m2Y + w2.y) / 2 + 2);
+    ctx.moveTo(-28, -28);
+    ctx.lineTo(10, -30);
     ctx.stroke();
 
-    ctx.restore();
+    /* ── 2. MAIN BODY ── (the classic HCR rounded-rectangular silhouette) */
+    ctx.fillStyle   = liv.chassis;
+    ctx.strokeStyle = sw;
+    ctx.lineWidth   = 3.5;
+
+    // Lower hull – wide and squat like the HCR Jeep
+    ctx.beginPath();
+    ctx.moveTo(-46,  8);   // rear bottom
+    ctx.lineTo(-46, -6);   // rear side
+    ctx.lineTo(-34, -8);   // rear slope
+    ctx.lineTo(-24,  2);   // rear strut base
+    ctx.lineTo( 8,   2);   // cockpit floor
+    ctx.lineTo(34,  -10);  // front strut base
+    ctx.lineTo(42,  -4);   // nose
+    ctx.lineTo(44,   8);   // front bumper
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Skid plate / underside
+    ctx.fillStyle = liv.accent;
+    ctx.beginPath();
+    ctx.moveTo(-42, 8);
+    ctx.lineTo( 40, 8);
+    ctx.lineTo( 38, 12);
+    ctx.lineTo(-40, 12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = sw;
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+
+    /* ── 3. ROOF & WINDSCREEN ── */
+    // Roof panel
+    ctx.fillStyle   = liv.chassis;
+    ctx.strokeStyle = sw;
+    ctx.lineWidth   = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(-28, -28);
+    ctx.lineTo( 10, -30);
+    ctx.lineTo( 32, -30);
+    ctx.lineTo( 34, -10);
+    ctx.lineTo(  8,   2);
+    ctx.lineTo(-24,   2);
+    ctx.lineTo(-28, -28);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Windscreen glass
+    ctx.fillStyle   = 'rgba(120,210,255,0.38)';
+    ctx.strokeStyle = 'rgba(120,210,255,0.7)';
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.moveTo(11, -28);
+    ctx.lineTo(31, -28);
+    ctx.lineTo(32, -12);
+    ctx.lineTo(10,  -1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    /* ── 4. REAR CARGO / FUEL TANK BUMP ── */
+    ctx.fillStyle   = liv.accent;
+    ctx.strokeStyle = sw;
+    ctx.lineWidth   = 2.5;
+    ctx.beginPath();
+    ctx.roundRect(-44, -20, 18, 14, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    // Tank highlight line
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-42, -8);
+    ctx.lineTo(-28, -8);
+    ctx.stroke();
+
+    /* ── 5. FRONT HEADLIGHT ── */
+    ctx.fillStyle   = '#FFEE88';
+    ctx.strokeStyle = sw;
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.roundRect(40, -3, 5, 8, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    /* ── 6. DRIVER (Little HCR–style character) ── */
+    this._drawDriver(ctx, liv);
+
+    /* ── 7. ENGRAVED NAME PLATE (on door) ── */
+    this._drawPlate(ctx, name, liv);
+
+    /* ── 8. ACCENT RACING STRIPE ── */
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(-22, -4, 52, 5);
   }
 
-  drawWheel(ctx, x, y, angle, livery) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-
-    const radius = 15;
-
-    // Outer Tire (Thick Charcoal/Black)
-    ctx.fillStyle = '#0F1322';
-    ctx.beginPath();
-    ctx.arc(0, 0, radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Flat Tire Treads (Bauhaus geometric teeth)
-    ctx.fillStyle = '#22283C';
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2;
-      ctx.fillRect(Math.cos(a) * 11 - 2, Math.sin(a) * 11 - 2, 4, 4);
-    }
-
-    // Wheel Rim (Vibrant Livery color)
-    ctx.fillStyle = livery.wheelRims;
-    ctx.beginPath();
-    ctx.arc(0, 0, 8.5, 0, Math.PI * 2);
-    ctx.fill();
+  _drawDriver(ctx, liv) {
+    /* Body torso */
+    ctx.fillStyle   = liv.chassis;
     ctx.strokeStyle = '#0F1322';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth   = 2.5;
+    ctx.beginPath();
+    ctx.roundRect(-16, -26, 18, 22, 4);
+    ctx.fill();
     ctx.stroke();
 
-    // Hubcap Center
+    /* Helmet */
+    ctx.fillStyle = liv.helmet;
+    ctx.beginPath();
+    ctx.arc(-7, -28, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#0F1322';
+    ctx.lineWidth   = 2.5;
+    ctx.stroke();
+
+    /* Visor slit */
+    ctx.fillStyle = '#0F1322';
+    ctx.beginPath();
+    ctx.roundRect(-4, -31, 8, 5, 2);
+    ctx.fill();
+
+    /* Helmet stripe */
+    ctx.strokeStyle = liv.accent;
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.arc(-7, -28, 10, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.stroke();
+  }
+
+  _drawPlate(ctx, name, liv) {
+    const rawName = (name || 'RACER').toUpperCase().trim().slice(0, 13);
+    const pw = 52, ph = 16;
+    const px = -8, py = -4; // door area
+
+    // Plate base
+    ctx.fillStyle   = liv.plateBg;
+    ctx.strokeStyle = '#0F1322';
+    ctx.lineWidth   = 1.8;
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    // Corner rivets
+    ctx.fillStyle = '#0F1322';
+    [[px+2, py+2],[px+pw-4,py+2],[px+2,py+ph-4],[px+pw-4,py+ph-4]].forEach(([rx,ry]) => {
+      ctx.beginPath(); ctx.arc(rx, ry, 1.2, 0, Math.PI*2); ctx.fill();
+    });
+
+    // Name text
+    ctx.fillStyle = liv.plateText;
+    let fs = 10;
+    if (rawName.length > 8)  fs = 8.5;
+    if (rawName.length > 11) fs = 7;
+    ctx.font         = `900 ${fs}px "Space Grotesk",sans-serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(rawName, px + pw / 2, py + ph / 2 + 0.5);
+  }
+
+  /* ─── WHEEL ───────────────────────────────────────────────────────── */
+  _drawWheel(ctx, wx, wy, wa, liv) {
+    ctx.save();
+    ctx.translate(wx, wy);
+    ctx.rotate(wa);
+
+    const R = 18, r = 9;
+
+    // Tire (big, grippy HCR style)
+    ctx.fillStyle   = '#0F1322';
+    ctx.strokeStyle = '#0F1322';
+    ctx.lineWidth   = 0;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Tread nubs – 8 around edge
+    for (let i = 0; i < 8; i++) {
+      const a  = (i / 8) * Math.PI * 2;
+      const nx = Math.cos(a) * (R - 2);
+      const ny = Math.sin(a) * (R - 2);
+      ctx.save();
+      ctx.translate(nx, ny);
+      ctx.rotate(a);
+      ctx.fillStyle = '#1E2740';
+      ctx.fillRect(-4, -3, 8, 6);
+      ctx.restore();
+    }
+
+    // Rim
+    ctx.fillStyle   = liv.wheel;
+    ctx.strokeStyle = '#0F1322';
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Rim spokes (3 spokes)
+    ctx.strokeStyle = '#0F1322';
+    ctx.lineWidth   = 2.5;
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * 3, Math.sin(a) * 3);
+      ctx.lineTo(Math.cos(a) * (r - 1), Math.sin(a) * (r - 1));
+      ctx.stroke();
+    }
+
+    // Hub cap
     ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
     ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Rotation indicator notch
-    ctx.fillStyle = '#0F1322';
-    ctx.fillRect(3, -1.5, 4, 3);
-
     ctx.restore();
   }
 
-  drawDriver(ctx, livery) {
-    // Driver Head / Helmet
-    ctx.fillStyle = livery.helmet;
-    ctx.beginPath();
-    ctx.arc(8, -20, 9, 0, Math.PI * 2);
-    ctx.fill();
+  /* ─── NAME TAG (multiplayer overhead label) ─────────────────────── */
+  _drawNameTag(ctx, x, y, text, isPlayer) {
+    ctx.save();
+    const bg = isPlayer ? '#2B55FF' : '#FF4742';
+    ctx.font = '800 11px "Space Grotesk",sans-serif';
+    const tw = ctx.measureText(text).width;
+    const w  = Math.max(52, tw + 18), h = 22;
+
+    ctx.fillStyle   = bg;
     ctx.strokeStyle = '#0F1322';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.roundRect(x - w/2, y - h/2, w, h, 6);
+    ctx.fill();
     ctx.stroke();
 
-    // Driver Visor (Dark sporty slit)
-    ctx.fillStyle = '#0F1322';
+    // Downward arrow
+    ctx.fillStyle = bg;
     ctx.beginPath();
-    ctx.roundRect(10, -22, 6, 4.5, 1.5);
-    ctx.fill();
-  }
+    ctx.moveTo(x-5, y+h/2); ctx.lineTo(x+5, y+h/2); ctx.lineTo(x, y+h/2+6);
+    ctx.closePath(); ctx.fill();
 
-  /**
-   * Engrave racer's name onto the car chassis door
-   */
-  drawEngravedPlate(ctx, name, livery) {
-    const rawName = (name || 'RACER').toUpperCase().trim().slice(0, 14);
-
-    const plateW = 48;
-    const plateH = 15;
-    const plateX = -18;
-    const plateY = -2;
-
-    // Plate Base
-    ctx.fillStyle = livery.plateBg;
-    ctx.beginPath();
-    ctx.roundRect(plateX, plateY, plateW, plateH, 3);
-    ctx.fill();
-
-    // Engraved inset border
-    ctx.strokeStyle = '#0F1322';
-    ctx.lineWidth = 1.8;
-    ctx.strokeRect(plateX, plateY, plateW, plateH);
-
-    // Decorative corner bolts / rivets
-    ctx.fillStyle = '#0F1322';
-    ctx.fillRect(plateX + 2, plateY + 2, 1.5, 1.5);
-    ctx.fillRect(plateX + plateW - 3.5, plateY + 2, 1.5, 1.5);
-    ctx.fillRect(plateX + 2, plateY + plateH - 3.5, 1.5, 1.5);
-    ctx.fillRect(plateX + plateW - 3.5, plateY + plateH - 3.5, 1.5, 1.5);
-
-    // Laser-Engraved Typography
-    ctx.save();
-    ctx.fillStyle = livery.plateText;
-    // Dynamic text size based on name length
-    let fontSize = 9.5;
-    if (rawName.length > 8) fontSize = 8.0;
-    if (rawName.length > 11) fontSize = 6.8;
-
-    ctx.font = `900 ${fontSize}px "Space Grotesk", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.letterSpacing = '0.5px';
-    ctx.fillText(rawName, plateX + plateW / 2, plateY + plateH / 2 + 0.5);
-    ctx.restore();
-  }
-
-  drawNameTag(ctx, x, y, text, isPlayer) {
-    ctx.save();
-    const tagBg = isPlayer ? '#2B55FF' : '#FF4742';
-    ctx.font = '800 11px "Space Grotesk", sans-serif';
-    const textMetrics = ctx.measureText(text);
-    const w = Math.max(50, textMetrics.width + 16);
-    const h = 20;
-
-    // Tag Bubble
-    ctx.fillStyle = tagBg;
-    ctx.beginPath();
-    ctx.roundRect(x - w / 2, y - h / 2, w, h, 6);
-    ctx.fill();
-
-    ctx.strokeStyle = '#0F1322';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x - w / 2, y - h / 2, w, h);
-
-    // Little downward arrow
-    ctx.fillStyle = tagBg;
-    ctx.beginPath();
-    ctx.moveTo(x - 4, y + h / 2);
-    ctx.lineTo(x + 4, y + h / 2);
-    ctx.lineTo(x, y + h / 2 + 5);
-    ctx.closePath();
-    ctx.fill();
-
-    // Text
-    ctx.fillStyle = '#FFFFFF';
-    ctx.textAlign = 'center';
+    ctx.fillStyle    = '#FFFFFF';
+    ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, x, y);
     ctx.restore();
   }
 
-  drawEmoteBubble(ctx, x, y, emote) {
+  _drawEmote(ctx, x, y, emoji) {
     ctx.save();
-    ctx.font = '22px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    // Speech bubble
+    ctx.font = '20px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.arc(x, y, 18, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#0F1322';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-
-    ctx.fillText(emote, x, y);
+    ctx.shadowColor = '#0F1322'; ctx.shadowBlur = 4;
+    ctx.beginPath(); ctx.arc(x, y, 18, 0, Math.PI*2);
+    ctx.fillStyle = '#FFFFFF'; ctx.fill();
+    ctx.strokeStyle = '#0F1322'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#000';
+    ctx.fillText(emoji, x, y);
     ctx.restore();
   }
+
 }
 
 window.CarRenderer = CarRenderer;

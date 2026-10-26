@@ -1,6 +1,6 @@
 /**
- * Flat Climb Racing - 2D Vehicle Physics Engine
- * Chassis, two independent spring-damper suspension wheels, in-air torque, and collision detection.
+ * Flat Climb Racing - 2D Vehicle Physics Engine (v2 - Fixed & Tuned)
+ * Simple, stable, fun - like the original Hill Climb Racing.
  * Made by Raghav Parashar
  */
 
@@ -8,393 +8,300 @@ class VehiclePhysics {
   constructor(terrain) {
     this.terrain = terrain;
 
-    // Vehicle dimensions
-    this.wheelbase = 60; // Distance between wheels
-    this.chassisWidth = 76;
-    this.chassisHeight = 30;
-    this.wheelRadius = 15;
-    this.suspensionRestLength = 26;
+    // Vehicle layout
+    this.wheelRadius = 18;
+    this.wheelbase   = 68; // px between wheel centers
 
-    // Physical constants
-    this.gravity = 980; // px/s^2
-    this.mass = 4.0;
-    this.wheelMass = 1.0;
-    this.inertia = 1200;
-
-    // Engine & Handling tuning
-    this.driveForce = 1750;
-    this.reverseForce = 1100;
-    this.airTorque = 16.0; // Torque for mid-air flips
-    this.springK = 260; // Suspension spring stiffness
-    this.damperC = 22;  // Suspension damping
-    this.tireFriction = 2.4;
+    // Physics tuning
+    this.gravity        = 1400; // px/s²
+    this.driveForce     = 2200;
+    this.brakeForce     = 1400;
+    this.airTorqueRate  = 5.5;  // rad/s² when tilting in air
+    this.linearDamping  = 0.985;
+    this.angularDamping = 0.88;
 
     this.reset();
   }
 
-  reset(startX = 60) {
-    const groundY = this.terrain.getHeight(startX);
+  reset(startX = 80) {
+    const gy = this.terrain.getHeight(startX);
 
-    // Chassis state
-    this.x = startX;
-    this.y = groundY - 50;
+    // Represent car as a single rigid body on two contact points
+    this.x  = startX;
+    this.y  = gy - this.wheelRadius - 2;
     this.vx = 0;
     this.vy = 0;
     this.angle = 0;
-    this.angularVelocity = 0;
+    this.angVel = 0;
 
-    // Rear wheel (Wheel 1)
-    this.w1 = {
-      x: startX - this.wheelbase / 2,
-      y: groundY - this.wheelRadius - 2,
-      vx: 0,
-      vy: 0,
-      angle: 0,
-      angularVelocity: 0,
-      onGround: true,
-      slip: 0
-    };
+    // Wheel spin angles (visual only)
+    this.w1Angle = 0;
+    this.w2Angle = 0;
 
-    // Front wheel (Wheel 2)
-    this.w2 = {
-      x: startX + this.wheelbase / 2,
-      y: groundY - this.wheelRadius - 2,
-      vx: 0,
-      vy: 0,
-      angle: 0,
-      angularVelocity: 0,
-      onGround: true,
-      slip: 0
-    };
+    // Ground contact flags
+    this.w1OnGround = true;
+    this.w2OnGround = true;
 
-    // Game stats
-    this.distance = 0;
-    this.maxDistance = 0;
-    this.fuel = 100.0;
-    this.score = 0;
-    this.crashed = false;
-    this.outOfFuel = false;
-    this.airTime = 0;
-    this.inAir = false;
-    this.totalRotation = 0;
+    // Stats
+    this.distance  = 0;
+    this.fuel      = 100;
+    this.score     = 0;
+    this.crashed   = false;
+    this.airTime   = 0;
+    this.inAir     = false;
+    this.flipAcc   = 0; // accumulates rotation in air for flip detection
     this.lastAngle = 0;
-    this.flipAccumulator = 0;
 
     // Event hooks
-    this.onFlip = null;
-    this.onCoin = null;
-    this.onFuel = null;
-    this.onCrash = null;
+    this.onCoin    = null;
+    this.onFuel    = null;
+    this.onFlip    = null;
+    this.onCrash   = null;
   }
 
-  update(dt, gasInput, brakeInput) {
+  // Returns world positions of the two wheel axle centers
+  getWheelPositions() {
+    const cosA = Math.cos(this.angle);
+    const sinA = Math.sin(this.angle);
+    const half = this.wheelbase / 2;
+    // Wheel 1 = rear (left in travel direction)
+    const w1x = this.x - cosA * half;
+    const w1y = this.y - sinA * half;
+    // Wheel 2 = front
+    const w2x = this.x + cosA * half;
+    const w2y = this.y + sinA * half;
+    return { w1x, w1y, w2x, w2y };
+  }
+
+  update(dt, gas, brake) {
     if (this.crashed) {
-      // Just simulate inert tumbling if crashed
-      this.updateCrashed(dt);
+      this._updateCrashed(dt);
       return;
     }
+    dt = Math.min(dt, 0.025); // clamp to avoid explosion on tab-switch
 
-    // Clamp dt to avoid physics explosion on lag spikes
-    const stepDt = Math.min(dt, 0.033);
-    const substeps = 4;
-    const subDt = stepDt / substeps;
+    const { w1x, w1y, w2x, w2y } = this.getWheelPositions();
 
-    for (let s = 0; s < substeps; s++) {
-      this.physicsSubstep(subDt, gasInput, brakeInput);
-    }
+    // Ground heights at each wheel
+    const g1 = this.terrain.getHeight(w1x);
+    const g2 = this.terrain.getHeight(w2x);
 
-    // Fuel consumption
-    if (this.fuel > 0) {
-      const fuelRate = (gasInput ? 4.2 : 0.8);
-      this.fuel = Math.max(0, this.fuel - fuelRate * stepDt);
-      if (this.fuel <= 0 && !this.outOfFuel) {
-        this.outOfFuel = true;
+    // Check contact
+    this.w1OnGround = (w1y + this.wheelRadius) >= g1;
+    this.w2OnGround = (w2y + this.wheelRadius) >= g2;
+    const anyOnGround = this.w1OnGround || this.w2OnGround;
+    const bothOnGround = this.w1OnGround && this.w2OnGround;
+
+    // ---- GRAVITY ----
+    this.vy += this.gravity * dt;
+
+    // ---- DRIVE / BRAKE ----
+    if (anyOnGround && this.fuel > 0) {
+      const cosA = Math.cos(this.angle);
+      const sinA = Math.sin(this.angle);
+      if (gas) {
+        this.vx += cosA * this.driveForce * dt;
+        this.vy += sinA * this.driveForce * dt;
+      } else if (brake) {
+        // Brake: apply force in reverse direction
+        const speed = Math.hypot(this.vx, this.vy);
+        if (speed > 5) {
+          this.vx -= (this.vx / speed) * this.brakeForce * dt;
+          this.vy -= (this.vy / speed) * this.brakeForce * dt;
+        }
       }
     }
 
-    // Update Distance
-    this.distance = Math.max(0, Math.floor((this.x - 60) / 30));
-    if (this.distance > this.maxDistance) {
-      this.maxDistance = this.distance;
+    // ---- AIR TILT ----
+    if (!anyOnGround) {
+      if (gas)   this.angVel -= this.airTorqueRate * dt; // lean back
+      if (brake) this.angVel += this.airTorqueRate * dt; // lean forward
     }
 
-    // In-air and Flip Tracker
-    const airborne = !this.w1.onGround && !this.w2.onGround;
-    if (airborne) {
+    // ---- ANGULAR DAMPING when on ground ----
+    if (bothOnGround) {
+      this.angVel *= Math.pow(this.angularDamping, dt * 60);
+    } else {
+      this.angVel *= Math.pow(0.995, dt * 60);
+    }
+
+    // Integrate
+    this.angle += this.angVel * dt;
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+
+    // ---- GROUND COLLISION (per wheel) ----
+    this._resolveGround(dt);
+
+    // ---- CHASSIS TILT TO TERRAIN ----
+    if (bothOnGround) {
+      this._alignToTerrain(dt);
+    }
+
+    // ---- LINEAR DAMPING (air resistance) ----
+    this.vx *= Math.pow(this.linearDamping, dt * 60);
+
+    // ---- FUEL ----
+    if (this.fuel > 0) {
+      this.fuel -= (gas ? 3.5 : 0.6) * dt;
+      if (this.fuel < 0) this.fuel = 0;
+    }
+
+    // ---- DISTANCE ----
+    this.distance = Math.max(0, Math.floor((this.x - 80) / 30));
+
+    // ---- FLIP TRACKING ----
+    this._trackFlips(dt);
+
+    // ---- COLLECTIBLES ----
+    this._checkCollectibles();
+
+    // ---- CRASH CHECK ----
+    this._checkCrash();
+
+    // ---- WHEEL SPIN (visual) ----
+    const speed = Math.hypot(this.vx, this.vy);
+    const spinRate = speed / this.wheelRadius;
+    this.w1Angle += spinRate * (this.vx >= 0 ? 1 : -1) * dt;
+    this.w2Angle += spinRate * (this.vx >= 0 ? 1 : -1) * dt;
+  }
+
+  _resolveGround(dt) {
+    const { w1x, w1y, w2x, w2y } = this.getWheelPositions();
+
+    let pushY1 = 0, pushY2 = 0;
+
+    if (this.w1OnGround) {
+      const g1 = this.terrain.getHeight(w1x);
+      const pen1 = (w1y + this.wheelRadius) - g1;
+      if (pen1 > 0) {
+        pushY1 = pen1;
+        if (this.vy > 0) this.vy = 0; // stop sinking
+      }
+    }
+    if (this.w2OnGround) {
+      const g2 = this.terrain.getHeight(w2x);
+      const pen2 = (w2y + this.wheelRadius) - g2;
+      if (pen2 > 0) {
+        pushY2 = pen2;
+        if (this.vy > 0) this.vy = 0;
+      }
+    }
+
+    // Apply correction to body center
+    const maxPush = Math.max(pushY1, pushY2);
+    if (maxPush > 0) {
+      this.y -= maxPush;
+    }
+  }
+
+  _alignToTerrain(dt) {
+    const { w1x, w2x } = this.getWheelPositions();
+    const h1 = this.terrain.getHeight(w1x);
+    const h2 = this.terrain.getHeight(w2x);
+    const targetAngle = Math.atan2(h2 - h1, w2x - w1x);
+
+    // Smoothly drive angle toward terrain angle
+    let diff = targetAngle - this.angle;
+    while (diff >  Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+
+    // PD controller
+    this.angVel += diff * 18 * dt;
+    this.angVel -= this.angVel * 12 * dt;
+  }
+
+  _trackFlips(dt) {
+    const anyOnGround = this.w1OnGround || this.w2OnGround;
+    if (!anyOnGround) {
       this.inAir = true;
-      this.airTime += stepDt;
+      this.airTime += dt;
 
-      // Track angular change for 360 flips
-      let deltaAngle = this.angle - this.lastAngle;
-      // Normalize delta
-      while (deltaAngle > Math.PI) deltaAngle -= Math.PI * 2;
-      while (deltaAngle < -Math.PI) deltaAngle += Math.PI * 2;
-      this.flipAccumulator += deltaAngle;
+      let delta = this.angle - this.lastAngle;
+      while (delta >  Math.PI) delta -= Math.PI * 2;
+      while (delta < -Math.PI) delta += Math.PI * 2;
+      this.flipAcc += delta;
 
-      if (this.flipAccumulator <= -Math.PI * 1.85) {
-        // Backflip complete!
-        this.flipAccumulator += Math.PI * 2;
+      if (this.flipAcc <= -Math.PI * 1.9) {
+        this.flipAcc += Math.PI * 2;
         this.score += 1000;
         if (this.onFlip) this.onFlip('BACKFLIP', 1000);
-      } else if (this.flipAccumulator >= Math.PI * 1.85) {
-        // Frontflip complete!
-        this.flipAccumulator -= Math.PI * 2;
+      } else if (this.flipAcc >= Math.PI * 1.9) {
+        this.flipAcc -= Math.PI * 2;
         this.score += 1500;
         if (this.onFlip) this.onFlip('FRONTFLIP', 1500);
       }
     } else {
       if (this.inAir && this.airTime > 1.0) {
-        // Big air bonus
-        const airBonus = Math.floor(this.airTime * 150);
-        this.score += airBonus;
+        this.score += Math.floor(this.airTime * 100);
       }
-      this.inAir = false;
+      this.inAir   = false;
       this.airTime = 0;
-      this.flipAccumulator = 0;
+      this.flipAcc = 0;
     }
     this.lastAngle = this.angle;
-
-    // Collectibles Check
-    this.checkCollectibles();
-
-    // Crash Check (Head hit ground)
-    this.checkCrash();
   }
 
-  physicsSubstep(dt, gas, brake) {
-    const cosA = Math.cos(this.angle);
-    const sinA = Math.sin(this.angle);
-
-    // Chassis mount positions in world space
-    // Rear mount:
-    const mount1X = this.x - cosA * (this.wheelbase * 0.48) + sinA * 6;
-    const mount1Y = this.y - sinA * (this.wheelbase * 0.48) - cosA * 6;
-
-    // Front mount:
-    const mount2X = this.x + cosA * (this.wheelbase * 0.48) + sinA * 6;
-    const mount2Y = this.y + sinA * (this.wheelbase * 0.48) - cosA * 6;
-
-    // Normal downward vector relative to chassis
-    const downX = -sinA;
-    const downY = cosA;
-
-    // --- 1. SUSPENSION FORCES ---
-    // Wheel 1 (Rear)
-    const s1X = this.w1.x - mount1X;
-    const s1Y = this.w1.y - mount1Y;
-    const s1Dist = Math.sqrt(s1X * s1X + s1Y * s1Y) || 1;
-    const s1Comp = s1Dist - this.suspensionRestLength;
-    const s1DirX = s1X / s1Dist;
-    const s1DirY = s1Y / s1Dist;
-
-    const relV1X = this.w1.vx - this.vx;
-    const relV1Y = this.w1.vy - this.vy;
-    const damp1 = relV1X * s1DirX + relV1Y * s1DirY;
-    const f1Spring = -this.springK * s1Comp - this.damperC * damp1;
-
-    // Wheel 2 (Front)
-    const s2X = this.w2.x - mount2X;
-    const s2Y = this.w2.y - mount2Y;
-    const s2Dist = Math.sqrt(s2X * s2X + s2Y * s2Y) || 1;
-    const s2Comp = s2Dist - this.suspensionRestLength;
-    const s2DirX = s2X / s2Dist;
-    const s2DirY = s2Y / s2Dist;
-
-    const relV2X = this.w2.vx - this.vx;
-    const relV2Y = this.w2.vy - this.vy;
-    const damp2 = relV2X * s2DirX + relV2Y * s2DirY;
-    const f2Spring = -this.springK * s2Comp - this.damperC * damp2;
-
-    // Apply suspension to wheels (pushing wheels away from chassis)
-    this.w1.vx += (s1DirX * -f1Spring / this.wheelMass) * dt;
-    this.w1.vy += (s1DirY * -f1Spring / this.wheelMass) * dt;
-
-    this.w2.vx += (s2DirX * -f2Spring / this.wheelMass) * dt;
-    this.w2.vy += (s2DirY * -f2Spring / this.wheelMass) * dt;
-
-    // Opposite force applied to chassis
-    const chassisFx = s1DirX * f1Spring + s2DirX * f2Spring;
-    const chassisFy = s1DirY * f1Spring + s2DirY * f2Spring;
-    this.vx += (chassisFx / this.mass) * dt;
-    this.vy += (chassisFy / this.mass) * dt;
-
-    // Suspension torque on chassis
-    const torque1 = (mount1X - this.x) * (s1DirY * f1Spring) - (mount1Y - this.y) * (s1DirX * f1Spring);
-    const torque2 = (mount2X - this.x) * (s2DirY * f2Spring) - (mount2Y - this.y) * (s2DirX * f2Spring);
-    let totalTorque = torque1 + torque2;
-
-    // --- 2. IN-AIR PITCH TORQUE (Hill Climb classic balance) ---
-    const inAirRatio = (!this.w1.onGround ? 0.5 : 0) + (!this.w2.onGround ? 0.5 : 0);
-    if (inAirRatio > 0) {
-      if (gas && this.fuel > 0) {
-        totalTorque -= this.airTorque * this.inertia * inAirRatio; // Lean back
-      }
-      if (brake) {
-        totalTorque += this.airTorque * this.inertia * inAirRatio; // Lean fwd
-      }
-    }
-
-    // Apply gravity
-    this.vy += this.gravity * dt;
-    this.w1.vy += this.gravity * dt;
-    this.w2.vy += this.gravity * dt;
-
-    // Update chassis rotation
-    this.angularVelocity += (totalTorque / this.inertia) * dt;
-    this.angularVelocity *= Math.pow(0.92, dt * 60); // Angular damping
-    this.angle += this.angularVelocity * dt;
-
-    // Update chassis position
-    this.x += this.vx * dt;
-    this.y += this.vy * dt;
-
-    // --- 3. WHEEL TERRAIN COLLISION & PROPULSION ---
-    this.updateWheelTerrain(this.w1, dt, gas, brake, true);
-    this.updateWheelTerrain(this.w2, dt, gas, brake, false);
-
-    // Hard limit distance between wheels and chassis so suspension cannot invert
-    this.constrainWheel(this.w1, mount1X, mount1Y);
-    this.constrainWheel(this.w2, mount2X, mount2Y);
-  }
-
-  updateWheelTerrain(w, dt, gas, brake, isRear) {
-    const groundY = this.terrain.getHeight(w.x);
-    const slope = this.terrain.getSlope(w.x);
-    const normal = this.terrain.getNormal(w.x);
-    const tangX = Math.cos(normal.angle);
-    const tangY = Math.sin(normal.angle);
-
-    const penetration = (w.y + this.wheelRadius) - groundY;
-
-    if (penetration > 0) {
-      w.onGround = true;
-
-      // Position correction
-      w.y -= normal.y * penetration;
-      w.x -= normal.x * penetration;
-
-      // Relative velocity along normal and tangent
-      const vDotNormal = w.vx * normal.x + w.vy * normal.y;
-      const vDotTang = w.vx * tangX + w.vy * tangY;
-
-      // Normal reaction force (springy ground contact)
-      if (vDotNormal < 0) {
-        const restitution = 0.05;
-        w.vx -= (1 + restitution) * vDotNormal * normal.x;
-        w.vy -= (1 + restitution) * vDotNormal * normal.y;
-      }
-
-      // DRIVE TORQUE & BRAKING
-      let driveForce = 0;
-      if (this.fuel > 0) {
-        if (gas) {
-          // All-wheel drive, biased towards rear
-          driveForce = this.driveForce * (isRear ? 1.0 : 0.8);
-        } else if (brake) {
-          driveForce = -this.reverseForce;
-        }
-      }
-
-      // Ground friction against slip
-      const frictionImpulse = -vDotTang * this.tireFriction * 18 * dt;
-      const driveImpulse = (driveForce / this.wheelMass) * dt;
-      const totalTangential = driveImpulse + frictionImpulse;
-
-      w.vx += totalTangential * tangX;
-      w.vy += totalTangential * tangY;
-
-      // Wheel rotation visual
-      w.angularVelocity = (w.vx * tangX + w.vy * tangY) / this.wheelRadius;
-    } else {
-      w.onGround = false;
-      // Air drag on spinning wheel
-      w.angularVelocity *= 0.98;
-    }
-
-    w.x += w.vx * dt;
-    w.y += w.vy * dt;
-    w.angle += w.angularVelocity * dt;
-  }
-
-  constrainWheel(w, mx, my) {
-    const dx = w.x - mx;
-    const dy = w.y - my;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const maxLen = this.suspensionRestLength * 1.45;
-    const minLen = this.suspensionRestLength * 0.45;
-
-    if (dist > maxLen) {
-      w.x = mx + (dx / dist) * maxLen;
-      w.y = my + (dy / dist) * maxLen;
-    } else if (dist < minLen) {
-      w.x = mx + (dx / dist) * minLen;
-      w.y = my + (dy / dist) * minLen;
-    }
-  }
-
-  checkCrash() {
-    // Driver head position
-    const cosA = Math.cos(this.angle);
-    const sinA = Math.sin(this.angle);
-    const headX = this.x + sinA * 22;
-    const headY = this.y - cosA * 22;
-
-    const groundY = this.terrain.getHeight(headX);
-
-    // If head hits ground or upside down collision
-    if (headY >= groundY - 4) {
-      this.crashed = true;
-      if (this.onCrash) this.onCrash('DRIVER DOWN');
-    }
-  }
-
-  checkCollectibles() {
-    const minX = this.x - 45;
-    const maxX = this.x + 45;
-
-    // Coins
+  _checkCollectibles() {
+    const r = 42;
     for (const coin of this.terrain.coinGroups) {
-      if (!coin.collected && coin.x >= minX && coin.x <= maxX) {
+      if (!coin.collected) {
+        const dx = coin.x - this.x;
         const dy = coin.y - this.y;
-        if (Math.abs(dy) < 45) {
+        if (Math.abs(dx) < r && Math.abs(dy) < r) {
           coin.collected = true;
-          this.score += coin.value;
-          if (this.onCoin) this.onCoin(coin.value, coin.x, coin.y);
+          this.score += 100;
+          if (this.onCoin) this.onCoin(100, coin.x, coin.y);
         }
       }
     }
-
-    // Fuel Cans
-    for (const fuelCan of this.terrain.fuelCans) {
-      if (!fuelCan.collected && fuelCan.x >= minX && fuelCan.x <= maxX) {
-        const dy = fuelCan.y - this.y;
-        if (Math.abs(dy) < 45) {
-          fuelCan.collected = true;
-          this.fuel = 100.0;
-          this.outOfFuel = false;
+    for (const fc of this.terrain.fuelCans) {
+      if (!fc.collected) {
+        const dx = fc.x - this.x;
+        const dy = fc.y - this.y;
+        if (Math.abs(dx) < r && Math.abs(dy) < r) {
+          fc.collected = true;
+          this.fuel = 100;
           this.score += 250;
-          if (this.onFuel) this.onFuel(fuelCan.x, fuelCan.y);
+          if (this.onFuel) this.onFuel(fc.x, fc.y);
         }
       }
     }
   }
 
-  updateCrashed(dt) {
-    // Tumble to a stop
-    this.vy += this.gravity * dt;
-    this.vx *= 0.96;
-    this.vy *= 0.96;
-    this.angularVelocity *= 0.94;
+  _checkCrash() {
+    // Driver head is above the car body — if it hits terrain = crash
+    const cosA = Math.cos(this.angle);
+    const sinA = Math.sin(this.angle);
+    // Head is slightly in front of center and above
+    const headX = this.x - sinA * 26 + cosA * 8;
+    const headY = this.y + cosA * 26 + sinA * 8;  // Wait - corrected below
+    // Actually: "above" in screen means negative y offset from car
+    // Head sits at +cosA*26 in the body-normal direction
+    const hx = this.x + (-sinA) * 28;
+    const hy = this.y + ( cosA) * 28;
 
+    const gy = this.terrain.getHeight(hx);
+    if (hy >= gy - 4 && (this.w1OnGround || this.w2OnGround)) {
+      this.crashed = true;
+      if (this.onCrash) this.onCrash();
+    }
+  }
+
+  _updateCrashed(dt) {
+    dt = Math.min(dt, 0.025);
+    this.vy += this.gravity * dt;
+    this.vx *= 0.97;
+    this.angVel *= 0.95;
     this.x += this.vx * dt;
     this.y += this.vy * dt;
-    this.angle += this.angularVelocity * dt;
+    this.angle += this.angVel * dt;
 
-    const groundY = this.terrain.getHeight(this.x);
-    if (this.y > groundY - 10) {
-      this.y = groundY - 10;
-      this.vy = 0;
-      this.vx *= 0.8;
+    const gy = this.terrain.getHeight(this.x);
+    if (this.y > gy - this.wheelRadius) {
+      this.y = gy - this.wheelRadius;
+      this.vy *= -0.15;
+      this.vx *= 0.7;
     }
   }
 }

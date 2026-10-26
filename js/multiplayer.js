@@ -237,26 +237,25 @@ class MultiplayerManager {
       if (!this.isConnected || !this.game.physics) return;
 
       const p = this.game.physics;
+      const wp = p.getWheelPositions();
       this.send({
         type: 'STATE',
-        x: Math.round(p.x * 10) / 10,
-        y: Math.round(p.y * 10) / 10,
+        x:    Math.round(p.x * 10) / 10,
+        y:    Math.round(p.y * 10) / 10,
         angle: Math.round(p.angle * 100) / 100,
-        vx: Math.round(p.vx),
-        vy: Math.round(p.vy),
-        w1x: Math.round(p.w1.x * 10) / 10,
-        w1y: Math.round(p.w1.y * 10) / 10,
-        w1a: Math.round(p.w1.angle * 100) / 100,
-        w2x: Math.round(p.w2.x * 10) / 10,
-        w2y: Math.round(p.w2.y * 10) / 10,
-        w2a: Math.round(p.w2.angle * 100) / 100,
-        dist: p.distance,
-        score: p.score,
-        fuel: Math.round(p.fuel),
+        w1x:  Math.round(wp.w1x * 10) / 10,
+        w1y:  Math.round(wp.w1y * 10) / 10,
+        w1a:  Math.round(p.w1Angle * 100) / 100,
+        w2x:  Math.round(wp.w2x * 10) / 10,
+        w2y:  Math.round(wp.w2y * 10) / 10,
+        w2a:  Math.round(p.w2Angle * 100) / 100,
+        dist:    p.distance,
+        score:   p.score,
+        fuel:    Math.round(p.fuel),
         crashed: p.crashed,
-        gas: this.game.input.gas,
-        name: this.game.driverName,
-        livery: this.game.carLivery
+        gas:     this.game.input.gas,
+        name:    this.game.driverName,
+        livery:  this.game.carLivery
       });
     }, 33);
   }
@@ -269,41 +268,21 @@ class MultiplayerManager {
   }
 
   updateRemoteState(data) {
-    if (data.name) this.opponentProfile.name = data.name;
+    if (data.name)   this.opponentProfile.name   = data.name;
     if (data.livery) this.opponentProfile.livery = data.livery;
 
-    if (!this.remoteState) {
-      // First packet, initialize directly
-      this.remoteState = {
-        x: data.x,
-        y: data.y,
-        angle: data.angle,
-        vx: data.vx,
-        vy: data.vy,
-        w1: { x: data.w1x, y: data.w1y, angle: data.w1a },
-        w2: { x: data.w2x, y: data.w2y, angle: data.w2a },
-        distance: data.dist,
-        score: data.score,
-        fuel: data.fuel,
-        crashed: data.crashed,
-        gas: data.gas
-      };
-    }
-
-    this.targetState = {
-      x: data.x,
-      y: data.y,
-      angle: data.angle,
-      vx: data.vx,
-      vy: data.vy,
-      w1: { x: data.w1x, y: data.w1y, angle: data.w1a },
-      w2: { x: data.w2x, y: data.w2y, angle: data.w2a },
-      distance: data.dist,
-      score: data.score,
-      fuel: data.fuel,
-      crashed: data.crashed,
-      gas: data.gas
+    const state = {
+      x: data.x, y: data.y, angle: data.angle,
+      w1x: data.w1x, w1y: data.w1y, w1a: data.w1a,
+      w2x: data.w2x, w2y: data.w2y, w2a: data.w2a,
+      distance: data.dist, score: data.score,
+      fuel: data.fuel, crashed: data.crashed, gas: data.gas
     };
+
+    if (!this.remoteState) {
+      this.remoteState = { ...state };
+    }
+    this.targetState = state;
   }
 
   /**
@@ -312,25 +291,25 @@ class MultiplayerManager {
   interpolate(dt) {
     if (!this.remoteState || !this.targetState) return;
 
-    const lerpRate = Math.min(1.0, dt * 20); // Responsive smoothing
+    const lr = Math.min(1.0, dt * 20);
 
-    this.remoteState.x += (this.targetState.x - this.remoteState.x) * lerpRate;
-    this.remoteState.y += (this.targetState.y - this.remoteState.y) * lerpRate;
-    this.remoteState.angle += (this.targetState.angle - this.remoteState.angle) * lerpRate;
+    this.remoteState.x     += (this.targetState.x     - this.remoteState.x)     * lr;
+    this.remoteState.y     += (this.targetState.y     - this.remoteState.y)     * lr;
+    this.remoteState.angle += (this.targetState.angle - this.remoteState.angle) * lr;
 
-    this.remoteState.w1.x += (this.targetState.w1.x - this.remoteState.w1.x) * lerpRate;
-    this.remoteState.w1.y += (this.targetState.w1.y - this.remoteState.w1.y) * lerpRate;
-    this.remoteState.w1.angle += (this.targetState.w1.angle - this.remoteState.w1.angle) * lerpRate;
+    this.remoteState.w1x += (this.targetState.w1x - this.remoteState.w1x) * lr;
+    this.remoteState.w1y += (this.targetState.w1y - this.remoteState.w1y) * lr;
+    this.remoteState.w1a += (this.targetState.w1a - this.remoteState.w1a) * lr;
 
-    this.remoteState.w2.x += (this.targetState.w2.x - this.remoteState.w2.x) * lerpRate;
-    this.remoteState.w2.y += (this.targetState.w2.y - this.remoteState.w2.y) * lerpRate;
-    this.remoteState.w2.angle += (this.targetState.w2.angle - this.remoteState.w2.angle) * lerpRate;
+    this.remoteState.w2x += (this.targetState.w2x - this.remoteState.w2x) * lr;
+    this.remoteState.w2y += (this.targetState.w2y - this.remoteState.w2y) * lr;
+    this.remoteState.w2a += (this.targetState.w2a - this.remoteState.w2a) * lr;
 
     this.remoteState.distance = this.targetState.distance;
-    this.remoteState.score = this.targetState.score;
-    this.remoteState.fuel = this.targetState.fuel;
-    this.remoteState.crashed = this.targetState.crashed;
-    this.remoteState.gas = this.targetState.gas;
+    this.remoteState.score    = this.targetState.score;
+    this.remoteState.fuel     = this.targetState.fuel;
+    this.remoteState.crashed  = this.targetState.crashed;
+    this.remoteState.gas      = this.targetState.gas;
   }
 
   sendEmote(emoji) {
