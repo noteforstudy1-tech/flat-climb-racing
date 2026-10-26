@@ -1,317 +1,1049 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Flat Climb Racing — Made by Raghav Parashar</title>
-  <meta name="description" content="Endless 2D flat design hill climb racing game with custom name car engraving and live WebRTC PeerJS multiplayer. Created by Raghav Parashar.">
-  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Flat Climb Racing — Made by Raghav Parashar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#0F111E;font-family:'Space Grotesk',sans-serif;touch-action:none}
 
-  <!-- Google Fonts: Space Grotesk & Outfit -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet">
+/* ── LAYOUT ── */
+#wrap{display:flex;flex-direction:column;width:100vw;height:100vh;height:100dvh;padding:10px 14px;background:#0F111E}
+#header{display:flex;align-items:center;justify-content:space-between;background:#171A2E;border:2.5px solid #0F111E;border-radius:14px;padding:7px 12px;margin-bottom:8px;flex-shrink:0}
+#gameArea{position:relative;flex:1;min-height:0;border-radius:18px;overflow:hidden;border:3px solid #0F111E;box-shadow:5px 5px 0 #0F111E;background:#2F55FF}
+#footer{display:flex;align-items:center;justify-content:space-between;background:#171A2E;border:2.5px solid #0F111E;border-radius:12px;padding:6px 12px;margin-top:8px;flex-shrink:0;font-size:.78rem}
 
-  <link rel="stylesheet" href="style.css">
+/* ── HEADER ELEMENTS ── */
+.logo{background:#FFB703;padding:5px 12px;border-radius:7px;border:2px solid #0F111E;font-size:1.1rem;font-weight:900;color:#0F111E;letter-spacing:-.3px}
+.made{background:#2B55FF;color:#fff;font-size:.72rem;font-weight:700;padding:4px 9px;border-radius:5px;border:1.5px solid #0F111E}
+.hbtn{display:inline-flex;align-items:center;gap:5px;background:#fff;color:#0F111E;border:2px solid #0F111E;border-radius:7px;padding:6px 11px;font-family:inherit;font-size:.8rem;font-weight:800;cursor:pointer;box-shadow:2px 2px 0 #0F111E}
+.hbtn:active{transform:translate(2px,2px);box-shadow:none}
+.hbtn.green{background:#00D06C}
+.hbtn.mute{padding:6px 9px}
 
-  <!-- PeerJS with local fallback -->
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <script>
-    if (typeof Peer === 'undefined') {
-      document.write('<script src="lib/peerjs.min.js"><\/script>');
-    }
-  </script>
+/* ── CANVAS ── */
+#c{display:block;width:100%;height:100%}
+
+/* ── HUD ── */
+#hud{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;padding:12px}
+.hudcard{pointer-events:none;background:rgba(15,17,30,.88);border:2px solid #0F111E;border-radius:10px;padding:7px 12px;color:#fff;backdrop-filter:blur(2px)}
+#hudTL{position:absolute;top:12px;left:12px;display:flex;gap:10px;align-items:center}
+.slab{display:flex;flex-direction:column}
+.slbl{font-size:.6rem;font-weight:800;color:#94A3B8;letter-spacing:.4px}
+.sval{font-size:1.25rem;font-weight:900;line-height:1}
+.gold{color:#FFB703}
+.sdiv{width:2px;height:26px;background:#334155}
+#hudFuel{position:absolute;top:12px;right:12px;width:150px}
+.flbl{font-size:.68rem;font-weight:900;margin-bottom:4px}
+.ftrack{background:#1E293B;border-radius:5px;height:12px;padding:1.5px;border:1.5px solid #0F111E}
+.ffill{height:100%;background:#00D06C;border-radius:3px;transition:width .12s,background .2s}
+.ffill.warn{background:#FF4742;animation:blink .5s infinite alternate}
+@keyframes blink{from{opacity:.5}to{opacity:1}}
+
+/* ── TOUCH PEDALS ── */
+#pedals{position:absolute;bottom:14px;left:0;width:100%;display:flex;justify-content:space-between;padding:0 18px;pointer-events:none}
+.pedal{pointer-events:auto;width:108px;height:76px;border-radius:16px;border:3px solid #0F111E;box-shadow:4px 4px 0 #0F111E;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;touch-action:none;transition:transform .08s,box-shadow .08s;-webkit-user-select:none}
+.pedal:active,.pedal.on{transform:translate(3px,3px);box-shadow:none}
+#pBrake{background:#FF4742;color:#fff}
+#pGas{background:#00D06C;color:#0F111E}
+.plab{font-size:1.1rem;font-weight:900}
+.psub{font-size:.62rem;font-weight:800;opacity:.8;margin-top:2px}
+
+/* ── MODALS ── */
+.mbk{position:fixed;inset:0;background:rgba(15,17,30,.78);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px;z-index:200}
+.mbk.hide{display:none!important}
+.mcard{background:#0F111E;border:3px solid #0F111E;border-radius:22px;width:100%;max-width:490px;overflow:hidden;animation:mpop .22s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes mpop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+.mbanner{padding:16px 22px;border-bottom:3px solid #0F111E}
+.mbanner.yellow{background:#FFB703;color:#0F111E}
+.mbanner.red{background:#FF4742;color:#fff}
+.mbanner h2{font-size:1.3rem;font-weight:900;letter-spacing:-.3px}
+.mbanner p{font-size:.78rem;font-weight:600;opacity:.88;margin-top:2px}
+.mbody{padding:18px 22px}
+.mfooter{padding:0 22px 20px}
+
+/* ── CAR PREVIEW ── */
+#prevWrap{background:#080A12;border:2px solid #1E293B;border-radius:14px;padding:10px;margin-bottom:16px;text-align:center}
+.prevbadge{display:inline-block;background:#FFB703;color:#0F111E;font-size:.62rem;font-weight:900;padding:2px 7px;border-radius:3px;margin-bottom:6px}
+#prevCv{width:100%;max-width:340px;height:120px;border-radius:8px}
+.prevhint{font-size:.7rem;color:#64748B;margin-top:5px}
+
+/* ── FORM ── */
+.fgrp{margin-bottom:14px}
+.fgrp label{display:flex;justify-content:space-between;margin-bottom:5px;font-size:.75rem;font-weight:800;color:#E2E8F0}
+.fnote{color:#64748B;font-weight:400}
+.inp-wrap{position:relative}
+.inp-wrap input{width:100%;background:#171A2E;border:2px solid #0F111E;border-radius:9px;padding:11px 38px 11px 13px;color:#fff;font-family:inherit;font-size:1rem;font-weight:800;outline:none;letter-spacing:.4px}
+.inp-wrap input:focus{border-color:#FFB703}
+.inp-ico{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:1.1rem}
+.livgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.lopt{display:flex;flex-direction:column;align-items:center;background:#171A2E;border:2px solid transparent;border-radius:9px;padding:7px 3px;cursor:pointer}
+.lopt.sel{border-color:#FFB703;background:#232845}
+.swatch{width:24px;height:24px;border-radius:50%;margin-bottom:4px}
+.lname{font-size:.62rem;font-weight:700;color:#CBD5E1}
+
+/* ── BIG BUTTON ── */
+.bigbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:#FFB703;color:#0F111E;border:2.5px solid #0F111E;border-radius:11px;box-shadow:4px 4px 0 #0F111E;font-family:inherit;font-size:.95rem;font-weight:900;cursor:pointer;transition:transform .08s,box-shadow .08s}
+.bigbtn:active{transform:translate(3px,3px);box-shadow:none}
+.bigbtn.grn{background:#00D06C}
+.bigbtn.blu{background:#2B55FF;color:#fff}
+
+/* ── GAME OVER ── */
+.gostat{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.gtile{background:#171A2E;border:2px solid #0F111E;border-radius:10px;padding:10px;text-align:center}
+.gtlbl{font-size:.65rem;font-weight:800;color:#94A3B8;display:block;margin-bottom:3px}
+.gtval{font-size:1.5rem;font-weight:900}
+.gobtnrow{display:flex;flex-direction:column;gap:8px}
+
+/* ── COUNTDOWN ── */
+#cdown{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,17,30,.35);pointer-events:none;z-index:100}
+#cdown.hide{display:none}
+#cnum{font-size:6rem;font-weight:900;color:#FFB703;text-shadow:5px 5px 0 #0F111E;animation:cpop .65s ease}
+@keyframes cpop{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+
+/* ── CONTROLS FOOTER ── */
+#footer .ctrl{color:#94A3B8;font-size:.73rem}
+.ckey{background:#1E293B;color:#fff;padding:2px 6px;border-radius:4px;border:1px solid #334155;font-weight:800}
+.csep{margin:0 5px;color:#475569}
+#footer .cr{color:#E2E8F0;font-size:.78rem}
+#footer .cr strong{color:#FFB703}
+
+/* ── RESPONSIVE ── */
+@media(max-width:600px){
+  #footer .ctrl{display:none}
+  .logo{font-size:.88rem}
+  .made{display:none}
+  .hbtn span{display:none}
+}
+@media(max-height:500px){
+  #header,#footer{display:none}
+  #wrap{padding:0}
+  #gameArea{border-radius:0;border:none}
+}
+</style>
 </head>
 <body>
-  <!-- Main Webpage Outer Frame (Bauhaus Rounded Shell) -->
-  <div class="bauhaus-frame">
-    <!-- Top Header -->
-    <header class="game-header">
-      <div class="brand-cluster">
-        <div class="logo-badge">
-          <h1>Flat Climb Racing</h1>
-        </div>
-        <div class="author-tag">
-          <span>Made by Raghav Parashar</span>
-        </div>
-      </div>
 
-      <!-- Action Buttons & Sound Toggle -->
-      <div class="header-actions">
-        <button id="btnCustomizeCar" class="flat-btn flat-btn-secondary" title="Engrave Your Name & Customize Car">
-          <span class="btn-icon">✍️</span> <span class="btn-text">Engrave Car</span>
-        </button>
-        <button id="btnOpenMultiplayer" class="flat-btn flat-btn-accent" title="Play Real-time Multiplayer with a Friend">
-          <span class="btn-icon">⚡</span> <span class="btn-text">Multiplayer</span>
-        </button>
-        <button id="btnMute" class="flat-btn flat-btn-icon" title="Toggle Sound">🔊</button>
-      </div>
-    </header>
-
-    <!-- Game Viewport Shell -->
-    <main class="game-viewport-container">
-      <canvas id="gameCanvas"></canvas>
-
-      <!-- Heads Up Display (HUD) -->
-      <div class="game-hud">
-        <!-- Top Left: Distance & Coins -->
-        <div class="hud-card hud-stats">
-          <div class="stat-item">
-            <span class="stat-label">DISTANCE</span>
-            <span id="hudDistance" class="stat-value">0m</span>
-          </div>
-          <div class="stat-divider"></div>
-          <div class="stat-item">
-            <span class="stat-label">SCORE</span>
-            <span id="hudScore" class="stat-value score-gold">0</span>
-          </div>
-        </div>
-
-        <!-- Top Right: Fuel Tank Gauge -->
-        <div class="hud-card hud-fuel">
-          <div class="fuel-header">
-            <span class="fuel-label">⛽ FUEL</span>
-          </div>
-          <div class="fuel-track">
-            <div id="hudFuelFill" class="fuel-fill"></div>
-          </div>
-        </div>
-
-        <!-- Multiplayer Live Split Tracker (Visible when connected) -->
-        <div id="hudMultiplayerSplit" class="hud-card hud-multiplayer hidden">
-          <div class="multi-row">
-            <div class="multi-racer racer-you">
-              <span class="racer-dot dot-you"></span>
-              <span id="multiMyName" class="racer-name">YOU</span>
-              <span id="multiMyDist" class="racer-dist">0m</span>
-            </div>
-            <div id="multiDiff" class="multi-diff">+0m</div>
-            <div class="multi-racer racer-opp">
-              <span class="racer-dot dot-opp"></span>
-              <span id="multiOppName" class="racer-name">OPPONENT</span>
-              <span id="multiOppDist" class="racer-dist">0m</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Floating Emote Bar -->
-        <div class="emote-bar">
-          <button class="emote-btn" data-emoji="🏎️💨" title="Speed">🏎️</button>
-          <button class="emote-btn" data-emoji="🔥" title="Fire">🔥</button>
-          <button class="emote-btn" data-emoji="💥" title="Crash">💥</button>
-          <button class="emote-btn" data-emoji="🏆" title="Trophy">🏆</button>
-          <button class="emote-btn" data-emoji="👋" title="Wave">👋</button>
-        </div>
-
-        <!-- Touch Controls for Mobile & Tablets -->
-        <div class="touch-pedals">
-          <button id="touchBrake" class="pedal-btn pedal-brake" aria-label="Brake and Lean Forward">
-            <div class="pedal-label">BRAKE</div>
-            <div class="pedal-sub">◀ LEAN</div>
-          </button>
-          <button id="touchGas" class="pedal-btn pedal-gas" aria-label="Gas and Lean Back">
-            <div class="pedal-label">GAS</div>
-            <div class="pedal-sub">LEAN ▶</div>
-          </button>
-        </div>
-      </div>
-
-      <!-- 3-2-1 GO Countdown Overlay -->
-      <div id="countdownOverlay" class="countdown-overlay hidden">
-        <div id="countdownNumber" class="countdown-number">3</div>
-      </div>
-    </main>
-
-    <!-- Bottom Controls & Footer Attribution Bar -->
-    <footer class="game-footer">
-      <div class="footer-left">
-        <div class="controls-guide">
-          <span class="guide-tag">CONTROLS:</span>
-          <span class="guide-key">D / ➔ / SPACE</span> Gas &amp; Lean Back
-          <span class="guide-sep">•</span>
-          <span class="guide-key">A / ⬅</span> Brake &amp; Lean Fwd
-          <span class="guide-sep">•</span>
-          <span class="guide-key">R</span> Restart
-        </div>
-      </div>
-      <div class="footer-right">
-        <span class="creator-badge">Engineered with ❤️ by <strong>Raghav Parashar</strong></span>
-      </div>
-    </footer>
-  </div>
-
-  <!-- ======================================================== -->
-  <!-- MODAL 1: DRIVER SIGN UP & CAR ENGRAVING BUREAU -->
-  <!-- ======================================================== -->
-  <div id="registrationModal" class="modal-backdrop">
-    <div class="modal-card registration-card">
-      <div class="modal-banner">
-        <h2>DRIVER REGISTRATION</h2>
-        <span class="banner-sub">Engrave your custom signature onto your car chassis</span>
-      </div>
-
-      <div class="registration-body">
-        <!-- Live Interactive Car Visualizer -->
-        <div class="car-preview-container">
-          <div class="preview-badge">LIVE ENGRAVING PREVIEW</div>
-          <canvas id="carPreviewCanvas" width="340" height="150"></canvas>
-          <p class="preview-hint">Your engraved name appears on the car door during all single &amp; multiplayer races</p>
-        </div>
-
-        <!-- Sign-Up Input Fields -->
-        <div class="form-section">
-          <div class="form-group">
-            <label for="inputDriverName">
-              <span class="label-title">DRIVER SIGNATURE / NAME</span>
-              <span class="label-note">Max 14 characters</span>
-            </label>
-            <div class="input-wrapper">
-              <input type="text" id="inputDriverName" maxlength="14" placeholder="Enter your name..." value="RAGHAV" autocomplete="off" spellcheck="false">
-              <span class="input-icon">✍️</span>
-            </div>
-          </div>
-
-          <!-- Livery / Color Selection -->
-          <div class="form-group">
-            <label><span class="label-title">CAR LIVERY &amp; PLATE STYLE</span></label>
-            <div class="livery-grid">
-              <button type="button" class="livery-option selected" data-livery="blue" title="Royal Speedster">
-                <span class="swatch" style="background:#2B55FF; border-color:#FFB703;"></span>
-                <span class="livery-name">Royal Blue</span>
-              </button>
-              <button type="button" class="livery-option" data-livery="red" title="Coral Blaze">
-                <span class="swatch" style="background:#FF4742; border-color:#0F1322;"></span>
-                <span class="livery-name">Coral Blaze</span>
-              </button>
-              <button type="button" class="livery-option" data-livery="yellow" title="Marigold Gold">
-                <span class="swatch" style="background:#FFB703; border-color:#2B55FF;"></span>
-                <span class="livery-name">Marigold</span>
-              </button>
-              <button type="button" class="livery-option" data-livery="green" title="Emerald Drift">
-                <span class="swatch" style="background:#00D06C; border-color:#0F1322;"></span>
-                <span class="livery-name">Emerald</span>
-              </button>
-              <button type="button" class="livery-option" data-livery="dark" title="Stealth Onyx">
-                <span class="swatch" style="background:#1A1E30; border-color:#FF4742;"></span>
-                <span class="livery-name">Stealth</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button id="btnSaveAndStart" class="flat-btn flat-btn-primary flat-btn-large">
-          <span>ENGRAVE &amp; START RACING</span>
-          <span class="btn-arrow">➔</span>
-        </button>
-      </div>
+<div id="wrap">
+  <!-- HEADER -->
+  <div id="header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="logo">Flat Climb Racing</div>
+      <div class="made">Made by Raghav Parashar</div>
+    </div>
+    <div style="display:flex;gap:7px">
+      <button class="hbtn" id="btnEngraveOpen">✍️ <span>Engrave Car</span></button>
+      <button class="hbtn mute" id="btnMute" title="Toggle sound">🔊</button>
     </div>
   </div>
 
-  <!-- ======================================================== -->
-  <!-- MODAL 2: PEERJS MULTIPLAYER LOBBY -->
-  <!-- ======================================================== -->
-  <div id="multiplayerModal" class="modal-backdrop hidden">
-    <div class="modal-card multiplayer-card">
-      <button class="modal-close" aria-label="Close modal">✕</button>
-      
-      <div class="modal-banner banner-accent">
-        <h2>MULTIPLAYER RACING</h2>
-        <span class="banner-sub">Real-Time WebRTC Peer-to-Peer 1v1 Race</span>
-      </div>
+  <!-- GAME AREA -->
+  <div id="gameArea">
+    <canvas id="c"></canvas>
 
-      <div class="multiplayer-body">
-        <p class="multi-explainer">
-          Race head-to-head on the <strong>identical endless hill terrain</strong>! Both drivers see each other live, with custom engraved names and real-time distance stats.
-        </p>
-
-        <div class="multiplayer-options">
-          <!-- Option A: Host a Race -->
-          <div class="multi-box host-box">
-            <h3>HOST A RACE</h3>
-            <p>Generate a private room code and invite your friend.</p>
-            <button id="btnCreateRoom" class="flat-btn flat-btn-primary full-width">CREATE NEW ROOM</button>
-
-            <div id="activeRoomPanel" class="active-room-panel hidden">
-              <div class="room-code-display">
-                <span class="room-code-label">YOUR ROOM CODE</span>
-                <span id="displayRoomCode" class="room-code-text">FLAT-XXXX</span>
-              </div>
-              <button id="btnCopyInvite" class="flat-btn flat-btn-secondary full-width">COPY INVITE LINK</button>
-            </div>
-          </div>
-
-          <div class="multi-divider"><span>OR</span></div>
-
-          <!-- Option B: Join a Race -->
-          <div class="multi-box join-box">
-            <h3>JOIN FRIEND'S RACE</h3>
-            <p>Enter the 4-letter room code shared by your friend.</p>
-            <div class="input-wrapper">
-              <input type="text" id="inputRoomCode" placeholder="e.g. FLAT-8291" maxlength="12" uppercase autocomplete="off">
-            </div>
-            <button id="btnJoinRoom" class="flat-btn flat-btn-accent full-width">JOIN RACE ROOM</button>
-          </div>
+    <!-- HUD -->
+    <div id="hud">
+      <div id="hudTL" class="hudcard">
+        <div class="slab">
+          <span class="slbl">DISTANCE</span>
+          <span class="sval" id="hdist">0m</span>
         </div>
+        <div class="sdiv"></div>
+        <div class="slab">
+          <span class="slbl">SCORE</span>
+          <span class="sval gold" id="hscore">0</span>
+        </div>
+      </div>
+      <div id="hudFuel" class="hudcard">
+        <div class="flbl">⛽ FUEL</div>
+        <div class="ftrack"><div class="ffill" id="hfuel" style="width:100%"></div></div>
+      </div>
+    </div>
 
-        <div class="multi-status-bar">
-          <span class="status-pulse"></span>
-          <span id="multiStatusText">Multiplayer ready. Host or join a room above.</span>
+    <!-- TOUCH PEDALS -->
+    <div id="pedals">
+      <button class="pedal" id="pBrake"><div class="plab">BRAKE</div><div class="psub">◀ LEAN</div></button>
+      <button class="pedal" id="pGas"><div class="plab">GAS</div><div class="psub">LEAN ▶</div></button>
+    </div>
+
+    <!-- COUNTDOWN -->
+    <div id="cdown" class="hide"><div id="cnum">3</div></div>
+  </div>
+
+  <!-- FOOTER -->
+  <div id="footer">
+    <div class="ctrl">
+      <span style="color:#FFB703;font-weight:900">CONTROLS:</span>
+      <span class="ckey">D / → / Space</span> Gas
+      <span class="csep">•</span>
+      <span class="ckey">A / ←</span> Brake
+      <span class="csep">•</span>
+      <span class="ckey">R</span> Restart
+    </div>
+    <div class="cr">Engineered with ❤️ by <strong>Raghav Parashar</strong></div>
+  </div>
+</div>
+
+<!-- MODAL: REGISTRATION -->
+<div class="mbk" id="mReg">
+  <div class="mcard">
+    <div class="mbanner yellow">
+      <h2>DRIVER REGISTRATION</h2>
+      <p>Engrave your name onto the car chassis plate</p>
+    </div>
+    <div class="mbody">
+      <div id="prevWrap">
+        <div class="prevbadge">LIVE ENGRAVING PREVIEW</div><br>
+        <canvas id="prevCv" width="340" height="120"></canvas>
+        <div class="prevhint">Your name engraved on the car door in every race</div>
+      </div>
+      <div class="fgrp">
+        <label>DRIVER NAME <span class="fnote">Max 14 chars</span></label>
+        <div class="inp-wrap">
+          <input type="text" id="iName" maxlength="14" placeholder="Enter your name…" autocomplete="off" spellcheck="false">
+          <span class="inp-ico">✍️</span>
+        </div>
+      </div>
+      <div class="fgrp">
+        <label>CAR LIVERY</label>
+        <div class="livgrid" id="livGrid">
+          <button class="lopt sel" data-l="blue"><span class="swatch" style="background:#2B55FF;border:2px solid #FFB703"></span><span class="lname">Royal</span></button>
+          <button class="lopt" data-l="red"><span class="swatch" style="background:#FF4742;border:2px solid #0F111E"></span><span class="lname">Coral</span></button>
+          <button class="lopt" data-l="yellow"><span class="swatch" style="background:#FFB703;border:2px solid #2B55FF"></span><span class="lname">Gold</span></button>
+          <button class="lopt" data-l="green"><span class="swatch" style="background:#00D06C;border:2px solid #0F111E"></span><span class="lname">Emerald</span></button>
+          <button class="lopt" data-l="dark"><span class="swatch" style="background:#1A1E30;border:2px solid #FF4742"></span><span class="lname">Stealth</span></button>
         </div>
       </div>
     </div>
+    <div class="mfooter">
+      <button class="bigbtn" id="btnStart">ENGRAVE &amp; START RACING ➔</button>
+    </div>
   </div>
+</div>
 
-  <!-- ======================================================== -->
-  <!-- MODAL 3: GAME OVER & SUMMARY -->
-  <!-- ======================================================== -->
-  <div id="gameOverModal" class="modal-backdrop hidden">
-    <div class="modal-card gameover-card">
-      <div class="modal-banner banner-danger">
-        <h2 id="goTitle">RACE OVER</h2>
-        <span id="goReason" class="banner-sub">Driver head touched the ground</span>
+<!-- MODAL: GAME OVER -->
+<div class="mbk hide" id="mOver">
+  <div class="mcard">
+    <div class="mbanner red">
+      <h2>RACE OVER</h2>
+      <p id="goReason">—</p>
+    </div>
+    <div class="mbody">
+      <div class="gostat">
+        <div class="gtile"><span class="gtlbl">DISTANCE</span><span class="gtval" id="goDist">0m</span></div>
+        <div class="gtile"><span class="gtlbl">SCORE</span><span class="gtval gold" id="goScore">0</span></div>
       </div>
-
-      <div class="gameover-body">
-        <!-- Single Player Stats -->
-        <div class="stats-summary-grid">
-          <div class="summary-tile">
-            <span class="tile-label">DISTANCE</span>
-            <span id="goDistance" class="tile-val">0m</span>
-          </div>
-          <div class="summary-tile">
-            <span class="tile-label">TOTAL SCORE</span>
-            <span id="goScore" class="tile-val score-gold">0</span>
-          </div>
-        </div>
-
-        <!-- Multiplayer Match Outcome (when racing a peer) -->
-        <div id="goMultiSummary" class="multi-summary-box hidden">
-          <div id="goWinnerBanner" class="winner-banner">YOU WON!</div>
-          <div class="multi-comparison">
-            <span id="goOpponentDist">Opponent reached: 180m</span>
-          </div>
-        </div>
-
-        <div class="gameover-actions">
-          <button id="btnPlayAgain" class="flat-btn flat-btn-primary flat-btn-large">
-            <span>RACE AGAIN</span> 🔄
-          </button>
-          <button id="btnRematch" class="flat-btn flat-btn-accent flat-btn-large">
-            <span>MULTIPLAYER REMATCH</span> ⚡
-          </button>
-        </div>
+      <div class="gobtnrow">
+        <button class="bigbtn" id="btnRestart">RACE AGAIN 🔄</button>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Scripts -->
-  <script src="js/audio.js"></script>
-  <script src="js/terrain.js"></script>
-  <script src="js/physics.js"></script>
-  <script src="js/car.js"></script>
-  <script src="js/multiplayer.js"></script>
-  <script src="js/game.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════════════
+// FLAT CLIMB RACING — complete game in one file
+// Made by Raghav Parashar
+// ══════════════════════════════════════════════════════════════════════
+
+// ── AUDIO ────────────────────────────────────────────────────────────
+const Audio = (() => {
+  let ctx = null, engOsc = null, engGain = null, running = false, muted = false;
+
+  function init() {
+    if (ctx) { ctx.state === 'suspended' && ctx.resume(); return; }
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  function startEngine() {
+    if (!ctx || running || muted) return;
+    try {
+      engOsc  = ctx.createOscillator();
+      engGain = ctx.createGain();
+      const f = ctx.createBiquadFilter();
+      engOsc.type = 'sawtooth';
+      engOsc.frequency.value = 55;
+      f.type = 'lowpass'; f.frequency.value = 260;
+      engGain.gain.value = 0.07;
+      engOsc.connect(f); f.connect(engGain); engGain.connect(ctx.destination);
+      engOsc.start(); running = true;
+    } catch(e){}
+  }
+
+  function updateEngine(throttle, speedRatio) {
+    if (!running || !ctx || muted) return;
+    const t = ctx.currentTime;
+    engOsc.frequency.setTargetAtTime(50 + (throttle?45:0) + speedRatio*110, t, 0.05);
+    engGain.gain.setTargetAtTime(0.05 + (throttle?.06:0) + speedRatio*.03, t, 0.05);
+  }
+
+  function stopEngine() {
+    if (!running || !engOsc) return;
+    try { engOsc.stop(); engOsc.disconnect(); } catch(e){}
+    running = false;
+  }
+
+  function beep(freq, dur, type='sine', vol=0.15) {
+    if (!ctx || muted) return;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    const t = ctx.currentTime;
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t+dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t+dur+.01);
+  }
+
+  function coin()  { beep(988,.08); setTimeout(()=>beep(1319,.1),80); }
+  function fuel()  { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.1,'square',.1),i*60)); }
+  function flip()  { [440,554,659,880].forEach((f,i)=>setTimeout(()=>beep(f,.15,'sine',.18),i*65)); }
+  function click() { beep(640,.05,'triangle',.1); }
+  function crash() {
+    if (!ctx||muted) return;
+    const buf=ctx.createBuffer(1,ctx.sampleRate*.3,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(d.length*.3));
+    const s=ctx.createBufferSource(); s.buffer=buf;
+    const g=ctx.createGain(); g.gain.setValueAtTime(.35,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.3);
+    s.connect(g); g.connect(ctx.destination); s.start();
+  }
+  function toggleMute() { muted=!muted; if(muted&&running) stopEngine(); return muted; }
+
+  return { init, startEngine, stopEngine, updateEngine, coin, fuel, flip, click, crash, toggleMute };
+})();
+
+// ── LIVERIES ─────────────────────────────────────────────────────────
+const LIV = {
+  blue:   {chassis:'#2B55FF', accent:'#FFB703', wheel:'#FFB703', helmet:'#FF4742', plateBg:'#FFB703', plateText:'#0F1322'},
+  red:    {chassis:'#FF4742', accent:'#FFFFFF', wheel:'#FFFFFF', helmet:'#FFB703', plateBg:'#0F1322', plateText:'#FFFFFF'},
+  yellow: {chassis:'#FFB703', accent:'#2B55FF', wheel:'#2B55FF', helmet:'#00D06C', plateBg:'#2B55FF', plateText:'#FFFFFF'},
+  green:  {chassis:'#00D06C', accent:'#FFB703', wheel:'#FFB703', helmet:'#2B55FF', plateBg:'#0F1322', plateText:'#62FFAE'},
+  dark:   {chassis:'#1A1E30', accent:'#FF4742', wheel:'#FF4742', helmet:'#FFB703', plateBg:'#FF4742', plateText:'#FFFFFF'},
+};
+
+// ── PROFILE ──────────────────────────────────────────────────────────
+let driverName = 'RAGHAV', carLivery = 'blue';
+try {
+  const p = JSON.parse(localStorage.getItem('fcr2') || '{}');
+  if (p.n) driverName = p.n;
+  if (p.l) carLivery  = p.l;
+} catch(e){}
+function saveProfile(n,l){ driverName=(n||'RACER').toUpperCase().trim().slice(0,14)||'RACER'; carLivery=l||'blue'; try{localStorage.setItem('fcr2',JSON.stringify({n:driverName,l:carLivery}))}catch(e){} }
+
+// ── TERRAIN ──────────────────────────────────────────────────────────
+let SEED = 1337;
+function setSeed(s){ SEED=s; coins=[]; fuels=[]; spawnedTo=0; populateTo(2000); }
+
+// Height function: flat start, then rolling hills
+function H(x) {
+  if (x < 120) return 430;
+  const blend = Math.min(1, (x-120)/250);
+  const s = SEED % 9999;
+  const h = 430
+    + Math.sin((x+s*13)*.0032)*55
+    + Math.cos((x+s*27)*.0075)*38
+    + Math.sin((x+s*47)*.0014)*90
+    + Math.sin((x+s*61)*.022)*10;
+  return 430 + (h-430)*blend;
+}
+function slope(x){ return (H(x+1)-H(x-1))/2; }
+
+// Collectibles
+let coins = [], fuels = [], spawnedTo = 0;
+function populateTo(maxX) {
+  for (let x = spawnedTo || 160; x < maxX; x += 38) {
+    const r = prng(SEED*7+x*3);
+    if (r > .18) {
+      const count = 3 + Math.floor(r*4);
+      for (let i = 0; i < count; i++) {
+        const cx = x + i*28;
+        coins.push({ x:cx, y:H(cx)-(22+Math.sin((i/(count-1))*Math.PI)*22), col:false });
+      }
+    }
+    if ((x % 120) < 38) {
+      fuels.push({ x, y:H(x)-26, col:false });
+    }
+  }
+  spawnedTo = maxX;
+}
+function prng(s){ let t=(s+=0x6D2B79F5); t=Math.imul(t^(t>>>15),t|1); t^=t+Math.imul(t^(t>>>7),t|61); return((t^(t>>>14))>>>0)/4294967296; }
+
+// ── PHYSICS ──────────────────────────────────────────────────────────
+let px=80, py=380, vx=0, vy=0, angle=0, angVel=0;
+let w1a=0, w2a=0; // wheel spin angles (visual)
+let fuel=100, score=0, distance=0, crashed=false, airTime=0, inAir=false, flipAcc=0, lastAng=0;
+const WB=68, WR=18; // wheelbase, wheel radius
+
+function resetPhysics() {
+  px=80; py=H(80)-WR-4; vx=0; vy=0; angle=0; angVel=0;
+  w1a=0; w2a=0; fuel=100; score=0; distance=0;
+  crashed=false; airTime=0; inAir=false; flipAcc=0; lastAng=0;
+  coins.forEach(c=>c.col=false); fuels.forEach(f=>f.col=false);
+}
+
+function wheelPos() {
+  const ca=Math.cos(angle), sa=Math.sin(angle);
+  return {
+    w1x: px - ca*(WB/2), w1y: py - sa*(WB/2),
+    w2x: px + ca*(WB/2), w2y: py + sa*(WB/2)
+  };
+}
+
+function updatePhysics(dt, gas, brake) {
+  if (crashed) { crashUpdate(dt); return; }
+  dt = Math.min(dt, 0.022);
+
+  const GRAV=1350, DRIVE=2000, BRAKE=1200, AIRTORQ=5.2;
+
+  // Gravity
+  vy += GRAV * dt;
+
+  // Drive / brake on ground
+  const {w1x,w1y,w2x,w2y} = wheelPos();
+  const g1=H(w1x), g2=H(w2x);
+  const c1=(w1y+WR)>=g1, c2=(w2y+WR)>=g2;
+  const grounded = c1||c2;
+
+  if (grounded && fuel > 0) {
+    const ca=Math.cos(angle), sa=Math.sin(angle);
+    if (gas)   { vx+=ca*DRIVE*dt; vy+=sa*DRIVE*dt; }
+    if (brake) {
+      const spd=Math.hypot(vx,vy);
+      if(spd>5){ vx-=(vx/spd)*BRAKE*dt; vy-=(vy/spd)*BRAKE*dt; }
+    }
+  }
+
+  // Air tilt
+  if (!grounded) {
+    if (gas)   angVel -= AIRTORQ*dt;
+    if (brake) angVel += AIRTORQ*dt;
+  }
+
+  angVel *= Math.pow(grounded ? 0.87 : 0.998, dt*60);
+  angle  += angVel*dt;
+  px     += vx*dt;
+  py     += vy*dt;
+  vx     *= Math.pow(0.988, dt*60);
+
+  // Ground resolve
+  const wp2 = wheelPos();
+  let pushed = false;
+  if ((wp2.w1y+WR) >= H(wp2.w1x)) { const pen=(wp2.w1y+WR)-H(wp2.w1x); py-=pen; if(vy>0)vy*=-.06; pushed=true; }
+  if ((wp2.w2y+WR) >= H(wp2.w2x)) { const pen=(wp2.w2y+WR)-H(wp2.w2x); py-=pen; if(vy>0)vy*=-.06; pushed=true; }
+
+  // Align to terrain when on ground
+  if (c1||c2) {
+    const wp3=wheelPos();
+    const ta=Math.atan2(H(wp3.w2x)-H(wp3.w1x), wp3.w2x-wp3.w1x);
+    let diff=ta-angle;
+    while(diff>Math.PI)diff-=Math.PI*2;
+    while(diff<-Math.PI)diff+=Math.PI*2;
+    angVel += diff*16*dt;
+    angVel -= angVel*10*dt;
+  }
+
+  // Fuel
+  if (fuel>0) { fuel-=(gas?3.2:.55)*dt; if(fuel<0)fuel=0; }
+
+  // Distance
+  distance = Math.max(0, Math.floor((px-80)/30));
+
+  // Flip tracking
+  const nowAir=!c1&&!c2;
+  if (nowAir) {
+    inAir=true; airTime+=dt;
+    let d=angle-lastAng; while(d>Math.PI)d-=Math.PI*2; while(d<-Math.PI)d+=Math.PI*2;
+    flipAcc+=d;
+    if(flipAcc<=-Math.PI*1.92){ flipAcc+=Math.PI*2; score+=1000; Audio.flip(); popText('BACKFLIP! +1000',px,py-65,'#FF4742',22); }
+    if(flipAcc>= Math.PI*1.92){ flipAcc-=Math.PI*2; score+=1500; Audio.flip(); popText('FRONTFLIP! +1500',px,py-65,'#FF4742',22); }
+  } else {
+    if(inAir&&airTime>1) score+=Math.floor(airTime*80);
+    inAir=false; airTime=0; flipAcc=0;
+  }
+  lastAng=angle;
+
+  // Wheel spin
+  const spd=Math.hypot(vx,vy);
+  const spin=spd/WR*(vx>=0?1:-1)*dt;
+  w1a+=spin; w2a+=spin;
+
+  // Collectibles
+  coins.forEach(c=>{
+    if(!c.col&&Math.abs(c.x-px)<38&&Math.abs(c.y-py)<38){
+      c.col=true; score+=100; Audio.coin(); popText('+100',c.x,c.y-15,'#FFBE00',15);
+    }
+  });
+  fuels.forEach(f=>{
+    if(!f.col&&Math.abs(f.x-px)<40&&Math.abs(f.y-py)<40){
+      f.col=true; fuel=100; score+=250; Audio.fuel(); popText('FUEL! +250',f.x,f.y-25,'#00D06C',18);
+    }
+  });
+
+  // Crash: helmet hits ground
+  const hx=px+(-Math.sin(angle))*26, hy=py+(Math.cos(angle))*26;
+  // Actually check if car is flipped hard into ground
+  if (hy >= H(hx)-3 && grounded && Math.abs(angle)>1.1) {
+    crashed=true; Audio.crash();
+    setTimeout(()=>triggerGameOver('Crashed! Flipped upside down.'),600);
+  }
+  // Out of fuel stop
+  if (fuel<=0 && Math.hypot(vx,vy)<6 && !crashed) {
+    triggerGameOver('Out of fuel! Get those Jerry Cans.');
+  }
+
+  // Extend terrain
+  if (px > spawnedTo - 400) populateTo(spawnedTo + 1000);
+}
+
+function crashUpdate(dt) {
+  dt=Math.min(dt,.022);
+  vy+=1350*dt; vx*=.97; angVel*=.94;
+  px+=vx*dt; py+=vy*dt; angle+=angVel*dt;
+  const g=H(px);
+  if(py>g-WR){ py=g-WR; vy*=-.12; vx*=.7; }
+}
+
+// ── FLOATING TEXTS ────────────────────────────────────────────────────
+let pops = [];
+function popText(t,x,y,col,sz){ pops.push({t,x,y,col,sz,vy:-55,a:1,life:1}); }
+function updatePops(dt){ for(let i=pops.length-1;i>=0;i--){ const p=pops[i]; p.y+=p.vy*dt; p.life-=dt*0.9; p.a=Math.max(0,p.life); if(p.life<=0)pops.splice(i,1); } }
+function drawPops(ctx){ ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle'; pops.forEach(p=>{ ctx.globalAlpha=p.a; ctx.font=`900 ${p.sz}px 'Space Grotesk',sans-serif`; ctx.strokeStyle='#0F1322'; ctx.lineWidth=4; ctx.strokeText(p.t,p.x,p.y); ctx.fillStyle=p.col; ctx.fillText(p.t,p.x,p.y); }); ctx.restore(); }
+
+// ── EXHAUST PARTICLES ─────────────────────────────────────────────────
+let parts = [];
+function spawnExhaust(wx,wy,ang) {
+  const a=ang+Math.PI+(Math.random()-.5)*.5;
+  parts.push({x:wx,y:wy,vx:Math.cos(a)*45,vy:Math.sin(a)*45-15,r:3+Math.random()*3,life:1,col:Math.random()>.4?'255,255,255':'255,183,3'});
+}
+function updateParts(dt){ for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=180*dt; p.r+=3*dt; p.life-=dt*2.5; if(p.life<=0)parts.splice(i,1); } }
+function drawParts(ctx){ ctx.save(); parts.forEach(p=>{ ctx.globalAlpha=Math.max(0,p.life)*.75; ctx.fillStyle=`rgba(${p.col},${Math.max(0,p.life)})`; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); }); ctx.restore(); }
+
+// ── CLOUDS ────────────────────────────────────────────────────────────
+const clouds = Array.from({length:8},(_,i)=>({x:i*340+Math.random()*100,y:55+Math.random()*120,w:70+Math.random()*55,h:18+Math.random()*13,spd:9+Math.random()*12}));
+
+// ── DRAW CAR ──────────────────────────────────────────────────────────
+function drawCar(ctx, cx, cy, ang, wa1, wa2, name, livKey) {
+  const liv = LIV[livKey] || LIV.blue;
+  const sw = '#0F111E';
+
+  // Wheels (behind body)
+  drawWheel(ctx, cx+Math.cos(ang)*(-WB/2)-Math.sin(ang)*0, cy+Math.sin(ang)*(-WB/2)+Math.cos(ang)*0, wa1, liv);
+  drawWheel(ctx, cx+Math.cos(ang)*(WB/2),                   cy+Math.sin(ang)*(WB/2),                   wa2, liv);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(ang);
+
+  // Exhaust smoke source
+  const ex=cx+Math.cos(ang)*-44, ey=cy+Math.sin(ang)*-44;
+
+  // ── ROLL CAGE / FRAME ──
+  ctx.strokeStyle=sw; ctx.lineWidth=5; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.beginPath(); ctx.moveTo(-22,2); ctx.lineTo(-26,-26); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(8,2); ctx.lineTo(10,-28); ctx.lineTo(30,-28); ctx.lineTo(32,-8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-26,-26); ctx.lineTo(10,-28); ctx.stroke();
+
+  // ── LOWER HULL ── (the classic HCR wide squat body)
+  ctx.fillStyle=liv.chassis; ctx.strokeStyle=sw; ctx.lineWidth=3.5;
+  ctx.beginPath();
+  ctx.moveTo(-44,  8);
+  ctx.lineTo(-44, -5);
+  ctx.lineTo(-32, -7);
+  ctx.lineTo(-22,  2);
+  ctx.lineTo(  8,  2);
+  ctx.lineTo( 32, -8);
+  ctx.lineTo( 42, -3);
+  ctx.lineTo( 44,  8);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // ── UNDERSIDE SKID ──
+  ctx.fillStyle=liv.accent; ctx.strokeStyle=sw; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(-40,8); ctx.lineTo(40,8); ctx.lineTo(38,13); ctx.lineTo(-38,13); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // ── CABIN ROOF FILL ──
+  ctx.fillStyle=liv.chassis; ctx.strokeStyle=sw; ctx.lineWidth=3.5;
+  ctx.beginPath();
+  ctx.moveTo(-26,-26); ctx.lineTo(10,-28); ctx.lineTo(30,-28); ctx.lineTo(32,-8); ctx.lineTo(8,2); ctx.lineTo(-22,2); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // ── WINDSCREEN ──
+  ctx.fillStyle='rgba(120,210,255,.35)'; ctx.strokeStyle='rgba(120,220,255,.7)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(11,-26); ctx.lineTo(29,-26); ctx.lineTo(30,-10); ctx.lineTo(10,0); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // ── REAR FUEL/CARGO BUMP ──
+  ctx.fillStyle=liv.accent; ctx.strokeStyle=sw; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.roundRect(-42,-19,18,13,4); ctx.fill(); ctx.stroke();
+
+  // ── HEADLIGHT ──
+  ctx.fillStyle='#FFEE88'; ctx.strokeStyle=sw; ctx.lineWidth=1.8;
+  ctx.beginPath(); ctx.roundRect(39,-2,5,8,2); ctx.fill(); ctx.stroke();
+
+  // ── DRIVER BODY ──
+  ctx.fillStyle=liv.chassis; ctx.strokeStyle=sw; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.roundRect(-18,-24,16,20,4); ctx.fill(); ctx.stroke();
+  // Helmet
+  ctx.fillStyle=liv.helmet;
+  ctx.beginPath(); ctx.arc(-10,-26,9,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  // Visor
+  ctx.fillStyle='#0F1322'; ctx.beginPath(); ctx.roundRect(-7,-29,7,4.5,2); ctx.fill();
+  // Stripe on helmet
+  ctx.strokeStyle=liv.accent; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(-10,-26,9,Math.PI*1.1,Math.PI*1.9); ctx.stroke();
+
+  // ── NAME PLATE ──
+  const rawName=(name||'RACER').toUpperCase().trim().slice(0,13);
+  const pw=52,ph=15,ppx=-6,ppy=-2;
+  ctx.fillStyle=liv.plateBg; ctx.strokeStyle=sw; ctx.lineWidth=1.8;
+  ctx.beginPath(); ctx.roundRect(ppx,ppy,pw,ph,3); ctx.fill(); ctx.stroke();
+  [[ppx+2,ppy+2],[ppx+pw-4,ppy+2],[ppx+2,ppy+ph-4],[ppx+pw-4,ppy+ph-4]].forEach(([rx,ry])=>{
+    ctx.fillStyle=sw; ctx.beginPath(); ctx.arc(rx,ry,1.1,0,Math.PI*2); ctx.fill();
+  });
+  let fs=10; if(rawName.length>8)fs=8.5; if(rawName.length>11)fs=7;
+  ctx.fillStyle=liv.plateText; ctx.font=`900 ${fs}px 'Space Grotesk',sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(rawName, ppx+pw/2, ppy+ph/2+.5);
+
+  ctx.restore(); // car transform
+
+  return {ex, ey}; // exhaust world pos
+}
+
+function drawWheel(ctx, wx, wy, wa, liv) {
+  ctx.save(); ctx.translate(wx,wy); ctx.rotate(wa);
+  const R=WR, r=9;
+  // Tire
+  ctx.fillStyle='#0F1322'; ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2); ctx.fill();
+  // Treads
+  for(let i=0;i<8;i++){
+    const a=(i/8)*Math.PI*2;
+    ctx.save(); ctx.translate(Math.cos(a)*(R-2),Math.sin(a)*(R-2)); ctx.rotate(a);
+    ctx.fillStyle='#1E2740'; ctx.fillRect(-3.5,-2.5,7,5); ctx.restore();
+  }
+  // Rim
+  ctx.fillStyle=liv.wheel; ctx.strokeStyle='#0F1322'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  // Spokes
+  ctx.strokeStyle='#0F1322'; ctx.lineWidth=2.2;
+  for(let i=0;i<3;i++){
+    const a=(i/3)*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(Math.cos(a)*3,Math.sin(a)*3); ctx.lineTo(Math.cos(a)*(r-1),Math.sin(a)*(r-1)); ctx.stroke();
+  }
+  // Hub
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(0,0,3,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+// Polyfill roundRect
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+    r=Math.min(r||0,w/2,h/2);
+    this.beginPath();
+    this.moveTo(x+r,y); this.arcTo(x+w,y,x+w,y+h,r); this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r); this.arcTo(x,y,x+w,y,r); this.closePath();
+    return this;
+  };
+}
+
+// ── DRAW TERRAIN ──────────────────────────────────────────────────────
+function drawTerrain(ctx, camX, camY, W, H_fn, viewW, viewH) {
+  const step=8, x0=Math.floor((camX-viewW/2-60)/step)*step, x1=camX+viewW/2+60;
+
+  // Background distant hills (parallax 0.35)
+  ctx.fillStyle='#1D3BBE';
+  ctx.beginPath(); ctx.moveTo(x0, viewH*3);
+  for(let x=x0;x<=x1;x+=20){
+    const s=SEED%5000;
+    const my=410+Math.sin((x*.35+s*11)*.002)*130+Math.cos((x*.35+s*3)*.004)*70;
+    ctx.lineTo(x, my);
+  }
+  ctx.lineTo(x1,viewH*3); ctx.closePath(); ctx.fill();
+
+  // Soil fill
+  ctx.fillStyle='#11162B';
+  ctx.beginPath(); ctx.moveTo(x0, 900);
+  for(let x=x0;x<=x1;x+=step) ctx.lineTo(x, H_fn(x));
+  ctx.lineTo(x1,900); ctx.closePath(); ctx.fill();
+
+  // Dark stratum
+  ctx.fillStyle='#1A2345';
+  ctx.beginPath(); ctx.moveTo(x0, 900);
+  for(let x=x0;x<=x1;x+=step) ctx.lineTo(x, H_fn(x)+18);
+  ctx.lineTo(x1,900); ctx.closePath(); ctx.fill();
+
+  // Green grass top
+  ctx.strokeStyle='#00D06C'; ctx.lineWidth=13; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.beginPath();
+  let first=true;
+  for(let x=x0;x<=x1;x+=step){ first?ctx.moveTo(x,H_fn(x)):ctx.lineTo(x,H_fn(x)); first=false; }
+  ctx.stroke();
+
+  // Highlight
+  ctx.strokeStyle='#62FFAE'; ctx.lineWidth=2.5;
+  ctx.beginPath(); first=true;
+  for(let x=x0;x<=x1;x+=step){ first?ctx.moveTo(x,H_fn(x)-5):ctx.lineTo(x,H_fn(x)-5); first=false; }
+  ctx.stroke();
+
+  // Start banner (only near start)
+  if (camX < 400) drawStart(ctx);
+
+  // Coins
+  const now=Date.now()*.005;
+  coins.forEach(c=>{
+    if(c.col||c.x<x0||c.x>x1) return;
+    const cy2=c.y+Math.sin(now+c.x*.05)*3;
+    ctx.fillStyle='#FFB703'; ctx.beginPath(); ctx.arc(c.x,cy2,10,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#FFE066'; ctx.beginPath(); ctx.arc(c.x,cy2,7,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#0F1322'; ctx.font='900 9px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('★',c.x,cy2);
+  });
+
+  // Fuel cans
+  fuels.forEach(f=>{
+    if(f.col||f.x<x0||f.x>x1) return;
+    const fy=f.y+Math.sin(now*1.5+f.x)*3.5;
+    ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(f.x,f.y+22,12,4,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#FF4742'; ctx.strokeStyle='#0F1322'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.roundRect(f.x-11,fy-13,22,26,4); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(f.x-6,fy-13); ctx.lineTo(f.x-6,fy-18); ctx.lineTo(f.x+6,fy-18); ctx.lineTo(f.x+6,fy-13); ctx.stroke();
+    ctx.fillStyle='#FFB703'; ctx.fillRect(f.x+3,fy-21,5,5);
+    ctx.fillStyle='#fff'; ctx.font='900 8px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('GAS',f.x,fy+1);
+  });
+}
+
+function drawStart(ctx) {
+  const x=50, y=H(50);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=5;
+  ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y-100); ctx.moveTo(x+65,y); ctx.lineTo(x+65,y-100); ctx.stroke();
+  ctx.fillStyle='#FFB703'; ctx.fillRect(x-8,y-124,82,24); ctx.strokeStyle='#0F1322'; ctx.lineWidth=2.5; ctx.strokeRect(x-8,y-124,82,24);
+  ctx.fillStyle='#0F1322'; ctx.font='900 12px "Space Grotesk",sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('START', x+32, y-112);
+  for(let r=0;r<2;r++) for(let c=0;c<6;c++){
+    ctx.fillStyle=(r+c)%2===0?'#fff':'#FF4742';
+    ctx.fillRect(x+c*9,y-96+r*9,9,9);
+  }
+}
+
+// ── CAMERA ────────────────────────────────────────────────────────────
+let camX=80, camY=430, camZoom=1;
+function updateCamera(dt) {
+  const tx=px+100+vx*.28, ty=py-50;
+  camX+=(tx-camX)*Math.min(1,dt*5);
+  camY+=(ty-camY)*Math.min(1,dt*4);
+  const tz=Math.max(.78,1-Math.hypot(vx,vy)/1400*.22);
+  camZoom+=(tz-camZoom)*Math.min(1,dt*3);
+}
+
+// ── MAIN CANVAS RENDER ────────────────────────────────────────────────
+const canvas=document.getElementById('c');
+const ctx2=canvas.getContext('2d');
+let DW=0, DH=0;
+
+function resizeCanvas() {
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width*dpr;
+  canvas.height=rect.height*dpr;
+  DW=rect.width; DH=rect.height;
+  ctx2.scale(dpr,dpr);
+}
+
+function render() {
+  ctx2.clearRect(0,0,DW,DH);
+
+  // Sky
+  ctx2.fillStyle='#2F55FF'; ctx2.fillRect(0,0,DW,DH);
+
+  // Coral sun
+  ctx2.fillStyle='#FF4742'; ctx2.beginPath(); ctx2.arc(72,72,64,0,Math.PI*2); ctx2.fill();
+
+  // Clouds (screen space, shift with camera slowly)
+  ctx2.fillStyle='rgba(255,255,255,.88)';
+  clouds.forEach(c=>{
+    const sx=((c.x-camX*.08)%DW+DW)%DW; // very slow parallax
+    ctx2.beginPath(); ctx2.roundRect(sx,c.y,c.w,c.h,c.h/2); ctx2.fill();
+  });
+
+  // ── World transform ──
+  ctx2.save();
+  ctx2.translate(DW*0.35, DH*0.56);
+  ctx2.scale(camZoom, camZoom);
+  ctx2.translate(-camX, -camY);
+
+  drawTerrain(ctx2, camX, camY, H, H, DW/camZoom, DH/camZoom);
+
+  const {w1x,w1y,w2x,w2y}=wheelPos();
+  const ex_info=drawCar(ctx2, px, py, angle, w1a, w2a, driverName, carLivery);
+  if(gasDown && Math.random()>.35) spawnExhaust(ex_info.ex, ex_info.ey, angle);
+
+  drawParts(ctx2);
+  drawPops(ctx2);
+
+  ctx2.restore();
+}
+
+// ── PREVIEW CANVAS ────────────────────────────────────────────────────
+const prevCv=document.getElementById('prevCv');
+const prevCtx=prevCv.getContext('2d');
+let prevFrame=0;
+function drawPreview() {
+  const W=prevCv.width, H2=prevCv.height;
+  prevCtx.clearRect(0,0,W,H2);
+  prevCtx.fillStyle='#080A12'; prevCtx.fillRect(0,0,W,H2);
+  prevCtx.fillStyle='#FF4742'; prevCtx.beginPath(); prevCtx.arc(28,28,22,0,Math.PI*2); prevCtx.fill();
+  prevCtx.fillStyle='#00D06C'; prevCtx.fillRect(W-28,H2-28,28,28);
+  const gY=H2*.76;
+  prevCtx.fillStyle='#00D06C'; prevCtx.fillRect(0,gY,W,3);
+  const t=performance.now()*.001;
+  const bob=Math.sin(t*3)*3;
+  const ang=Math.sin(t*.8)*.04;
+  const cx=W*.46, cy=gY-20;
+  // Wheel spin
+  const ws=t*2;
+  // draw wheels at fixed positions for preview
+  drawWheel(prevCtx, cx-34, gY-16, ws, LIV[carLivery]||LIV.blue);
+  drawWheel(prevCtx, cx+34, gY-16, ws, LIV[carLivery]||LIV.blue);
+
+  prevCtx.save(); prevCtx.translate(cx, cy+bob); prevCtx.rotate(ang);
+  // Draw body only (already drawn wheels above)
+  const liv=LIV[carLivery]||LIV.blue;
+  const sw='#0F111E';
+
+  // Roll cage
+  prevCtx.strokeStyle=sw; prevCtx.lineWidth=5; prevCtx.lineCap='round'; prevCtx.lineJoin='round';
+  prevCtx.beginPath(); prevCtx.moveTo(-22,2); prevCtx.lineTo(-26,-26); prevCtx.stroke();
+  prevCtx.beginPath(); prevCtx.moveTo(8,2); prevCtx.lineTo(10,-28); prevCtx.lineTo(30,-28); prevCtx.lineTo(32,-8); prevCtx.stroke();
+  prevCtx.beginPath(); prevCtx.moveTo(-26,-26); prevCtx.lineTo(10,-28); prevCtx.stroke();
+
+  prevCtx.fillStyle=liv.chassis; prevCtx.strokeStyle=sw; prevCtx.lineWidth=3.5;
+  prevCtx.beginPath(); prevCtx.moveTo(-44,8); prevCtx.lineTo(-44,-5); prevCtx.lineTo(-32,-7); prevCtx.lineTo(-22,2); prevCtx.lineTo(8,2); prevCtx.lineTo(32,-8); prevCtx.lineTo(42,-3); prevCtx.lineTo(44,8); prevCtx.closePath(); prevCtx.fill(); prevCtx.stroke();
+  prevCtx.fillStyle=liv.accent; prevCtx.strokeStyle=sw; prevCtx.lineWidth=2;
+  prevCtx.beginPath(); prevCtx.moveTo(-40,8); prevCtx.lineTo(40,8); prevCtx.lineTo(38,13); prevCtx.lineTo(-38,13); prevCtx.closePath(); prevCtx.fill(); prevCtx.stroke();
+  prevCtx.fillStyle=liv.chassis; prevCtx.strokeStyle=sw; prevCtx.lineWidth=3.5;
+  prevCtx.beginPath(); prevCtx.moveTo(-26,-26); prevCtx.lineTo(10,-28); prevCtx.lineTo(30,-28); prevCtx.lineTo(32,-8); prevCtx.lineTo(8,2); prevCtx.lineTo(-22,2); prevCtx.closePath(); prevCtx.fill(); prevCtx.stroke();
+  prevCtx.fillStyle='rgba(120,210,255,.35)'; prevCtx.strokeStyle='rgba(120,220,255,.7)'; prevCtx.lineWidth=1.5;
+  prevCtx.beginPath(); prevCtx.moveTo(11,-26); prevCtx.lineTo(29,-26); prevCtx.lineTo(30,-10); prevCtx.lineTo(10,0); prevCtx.closePath(); prevCtx.fill(); prevCtx.stroke();
+  prevCtx.fillStyle=liv.accent; prevCtx.strokeStyle=sw; prevCtx.lineWidth=2.5;
+  prevCtx.beginPath(); prevCtx.roundRect(-42,-19,18,13,4); prevCtx.fill(); prevCtx.stroke();
+  prevCtx.fillStyle='#FFEE88'; prevCtx.strokeStyle=sw; prevCtx.lineWidth=1.8;
+  prevCtx.beginPath(); prevCtx.roundRect(39,-2,5,8,2); prevCtx.fill(); prevCtx.stroke();
+  // Driver
+  prevCtx.fillStyle=liv.chassis; prevCtx.strokeStyle=sw; prevCtx.lineWidth=2.5;
+  prevCtx.beginPath(); prevCtx.roundRect(-18,-24,16,20,4); prevCtx.fill(); prevCtx.stroke();
+  prevCtx.fillStyle=liv.helmet; prevCtx.beginPath(); prevCtx.arc(-10,-26,9,0,Math.PI*2); prevCtx.fill(); prevCtx.stroke();
+  prevCtx.fillStyle='#0F1322'; prevCtx.beginPath(); prevCtx.roundRect(-7,-29,7,4.5,2); prevCtx.fill();
+  // Plate
+  const rawName=(driverName||'RACER').toUpperCase().trim().slice(0,13);
+  const pw=52,ph=15,ppx=-6,ppy=-2;
+  prevCtx.fillStyle=liv.plateBg; prevCtx.strokeStyle=sw; prevCtx.lineWidth=1.8;
+  prevCtx.beginPath(); prevCtx.roundRect(ppx,ppy,pw,ph,3); prevCtx.fill(); prevCtx.stroke();
+  let fs=10; if(rawName.length>8)fs=8.5; if(rawName.length>11)fs=7;
+  prevCtx.fillStyle=liv.plateText; prevCtx.font=`900 ${fs}px 'Space Grotesk',sans-serif`;
+  prevCtx.textAlign='center'; prevCtx.textBaseline='middle';
+  prevCtx.fillText(rawName, ppx+pw/2, ppy+ph/2+.5);
+
+  prevCtx.restore();
+  prevFrame=requestAnimationFrame(drawPreview);
+}
+function stopPreview(){ if(prevFrame){ cancelAnimationFrame(prevFrame); prevFrame=0; } }
+
+// ── GAME STATE ────────────────────────────────────────────────────────
+// States: MENU, COUNTDOWN, PLAYING, GAMEOVER
+let gameState='MENU';
+let gasDown=false, brakeDown=false;
+
+function setInput(g,b){ gasDown=g; brakeDown=b; }
+
+// HUD update
+function updateHUD() {
+  document.getElementById('hdist').textContent=distance+'m';
+  document.getElementById('hscore').textContent=score;
+  const ff=document.getElementById('hfuel');
+  ff.style.width=Math.max(0,Math.min(100,fuel))+'%';
+  ff.classList.toggle('warn',fuel<22);
+}
+
+// Countdown
+let cdTimer=null;
+function startCountdown() {
+  if(cdTimer) clearInterval(cdTimer);
+  gameState='COUNTDOWN';
+  gasDown=false; brakeDown=false;
+  const el=document.getElementById('cnum');
+  const ov=document.getElementById('cdown');
+  let v=3;
+  el.textContent='3';
+  ov.classList.remove('hide');
+  // Force re-trigger animation on each tick
+  function tick() {
+    el.style.animation='none';
+    void el.offsetWidth; // reflow
+    el.style.animation='';
+    el.textContent=v>0?v:'GO!';
+    if(v<=0) el.style.animation='cpop .65s ease';
+  }
+  tick();
+  cdTimer=setInterval(()=>{
+    v--;
+    if(v>=-1){
+      tick();
+      if(v<0){
+        clearInterval(cdTimer); cdTimer=null;
+        setTimeout(()=>{
+          ov.classList.add('hide');
+          gameState='PLAYING';
+          Audio.init();
+          Audio.startEngine();
+        },650);
+      }
+    }
+  },800);
+}
+
+function triggerGameOver(reason) {
+  if(gameState==='GAMEOVER') return;
+  gameState='GAMEOVER';
+  gasDown=false; brakeDown=false;
+  Audio.stopEngine();
+  document.getElementById('goReason').textContent=reason;
+  document.getElementById('goDist').textContent=distance+'m';
+  document.getElementById('goScore').textContent=score;
+  document.getElementById('mOver').classList.remove('hide');
+}
+
+function doRestart() {
+  document.getElementById('mOver').classList.add('hide');
+  resetPhysics();
+  camX=80; camY=H(80);
+  startCountdown();
+}
+
+// ── INPUT SETUP ──────────────────────────────────────────────────────
+// Keyboard
+window.addEventListener('keydown', e=>{
+  if(e.target.tagName==='INPUT') return;
+  if(!document.getElementById('mReg').classList.contains('hide') ||
+     !document.getElementById('mOver').classList.contains('hide')) return;
+  if(gameState!=='PLAYING') return;
+  if(e.code==='ArrowRight'||e.code==='KeyD'||e.code==='Space'){ e.preventDefault(); gasDown=true; Audio.init(); Audio.startEngine(); }
+  if(e.code==='ArrowLeft' ||e.code==='KeyA') { brakeDown=true; Audio.init(); Audio.startEngine(); }
+  if(e.code==='KeyR') doRestart();
+  if(e.code==='KeyM') { const m=Audio.toggleMute(); document.getElementById('btnMute').textContent=m?'🔇':'🔊'; }
+});
+window.addEventListener('keyup', e=>{
+  if(e.code==='ArrowRight'||e.code==='KeyD'||e.code==='Space') gasDown=false;
+  if(e.code==='ArrowLeft' ||e.code==='KeyA') brakeDown=false;
+});
+
+// Touch pedals
+function setupPedal(id, onDown, onUp) {
+  const btn=document.getElementById(id);
+  if(!btn) return;
+  btn.addEventListener('pointerdown', e=>{
+    e.preventDefault(); e.stopPropagation();
+    if(gameState!=='PLAYING') return;
+    btn.classList.add('on');
+    Audio.init(); Audio.startEngine();
+    onDown();
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(ev=>
+    btn.addEventListener(ev,e=>{ e.preventDefault(); btn.classList.remove('on'); onUp(); })
+  );
+}
+setupPedal('pGas',   ()=>{gasDown=true},   ()=>{gasDown=false});
+setupPedal('pBrake', ()=>{brakeDown=true}, ()=>{brakeDown=false});
+
+// Header buttons — stop propagation so they never reach the game
+document.getElementById('btnEngraveOpen').addEventListener('click', e=>{
+  e.stopPropagation();
+  Audio.click();
+  document.getElementById('iName').value=driverName;
+  // Select current livery
+  document.querySelectorAll('.lopt').forEach(o=>o.classList.toggle('sel',o.dataset.l===carLivery));
+  document.getElementById('mReg').classList.remove('hide');
+  drawPreview();
+});
+document.getElementById('btnMute').addEventListener('click', e=>{
+  e.stopPropagation();
+  const m=Audio.toggleMute();
+  e.currentTarget.textContent=m?'🔇':'🔊';
+});
+document.getElementById('btnStart').addEventListener('click', e=>{
+  e.stopPropagation();
+  Audio.init(); Audio.click();
+  const n=document.getElementById('iName').value.trim();
+  saveProfile(n, carLivery);
+  stopPreview();
+  document.getElementById('mReg').classList.add('hide');
+  if(gameState==='MENU'||gameState==='GAMEOVER'){
+    resetPhysics();
+    camX=80; camY=H(80);
+    startCountdown();
+  }
+});
+document.getElementById('btnRestart').addEventListener('click', e=>{
+  e.stopPropagation();
+  Audio.click();
+  doRestart();
+});
+
+// Livery selection
+document.getElementById('livGrid').addEventListener('click', e=>{
+  const btn=e.target.closest('.lopt');
+  if(!btn) return;
+  document.querySelectorAll('.lopt').forEach(o=>o.classList.remove('sel'));
+  btn.classList.add('sel');
+  carLivery=btn.dataset.l;
+});
+
+// Name input live update
+document.getElementById('iName').addEventListener('input', e=>{
+  driverName=(e.target.value||'RACER').toUpperCase().slice(0,14);
+});
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────
+let lastT=performance.now();
+function loop(now) {
+  const dt=Math.min(.05,(now-lastT)/1000);
+  lastT=now;
+
+  if(gameState==='PLAYING') {
+    updatePhysics(dt, gasDown, brakeDown);
+    Audio.updateEngine(gasDown, Math.min(1,Math.abs(vx)/450));
+    updateParts(dt);
+    updatePops(dt);
+    updateCamera(dt);
+    updateHUD();
+  } else if(gameState==='COUNTDOWN' || gameState==='GAMEOVER') {
+    updateCamera(dt);
+  }
+
+  // Move clouds slowly
+  clouds.forEach(c=>{ c.x+=c.spd*.016; if(c.x>2000)c.x=-150; });
+
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+window.addEventListener('resize', ()=>{ resizeCanvas(); });
+resizeCanvas();
+populateTo(2000);
+
+// Show the registration modal on first load, start preview
+drawPreview();
+resetPhysics();
+camX=80; camY=H(80);
+
+requestAnimationFrame(loop);
+</script>
 </body>
 </html>
