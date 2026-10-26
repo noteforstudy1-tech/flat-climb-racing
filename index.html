@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Flat Climb Racing — Made by Raghav Parashar</title>
+  <meta name="description" content="Endless 2D flat design hill climb racing game with custom name car engraving and live WebRTC PeerJS multiplayer. Created by Raghav Parashar.">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+
+  <!-- Google Fonts: Space Grotesk & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+
+  <!-- PeerJS with local fallback -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script>
+    if (typeof Peer === 'undefined') {
+      document.write('<script src="lib/peerjs.min.js"><\/script>');
+    }
+  </script>
+</head>
+<body>
+  <!-- Main Webpage Outer Frame (Bauhaus Rounded Shell) -->
+  <div class="bauhaus-frame">
+    <!-- Top Header -->
+    <header class="game-header">
+      <div class="brand-cluster">
+        <div class="logo-badge">
+          <h1>Flat Climb Racing</h1>
+        </div>
+        <div class="author-tag">
+          <span>Made by Raghav Parashar</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons & Sound Toggle -->
+      <div class="header-actions">
+        <button id="btnCustomizeCar" class="flat-btn flat-btn-secondary" title="Engrave Your Name & Customize Car">
+          <span class="btn-icon">✍️</span> <span class="btn-text">Engrave Car</span>
+        </button>
+        <button id="btnOpenMultiplayer" class="flat-btn flat-btn-accent" title="Play Real-time Multiplayer with a Friend">
+          <span class="btn-icon">⚡</span> <span class="btn-text">Multiplayer</span>
+        </button>
+        <button id="btnMute" class="flat-btn flat-btn-icon" title="Toggle Sound">🔊</button>
+      </div>
+    </header>
+
+    <!-- Game Viewport Shell -->
+    <main class="game-viewport-container">
+      <canvas id="gameCanvas"></canvas>
+
+      <!-- Heads Up Display (HUD) -->
+      <div class="game-hud">
+        <!-- Top Left: Distance & Coins -->
+        <div class="hud-card hud-stats">
+          <div class="stat-item">
+            <span class="stat-label">DISTANCE</span>
+            <span id="hudDistance" class="stat-value">0m</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-label">SCORE</span>
+            <span id="hudScore" class="stat-value score-gold">0</span>
+          </div>
+        </div>
+
+        <!-- Top Right: Fuel Tank Gauge -->
+        <div class="hud-card hud-fuel">
+          <div class="fuel-header">
+            <span class="fuel-label">⛽ FUEL</span>
+          </div>
+          <div class="fuel-track">
+            <div id="hudFuelFill" class="fuel-fill"></div>
+          </div>
+        </div>
+
+        <!-- Multiplayer Live Split Tracker (Visible when connected) -->
+        <div id="hudMultiplayerSplit" class="hud-card hud-multiplayer hidden">
+          <div class="multi-row">
+            <div class="multi-racer racer-you">
+              <span class="racer-dot dot-you"></span>
+              <span id="multiMyName" class="racer-name">YOU</span>
+              <span id="multiMyDist" class="racer-dist">0m</span>
+            </div>
+            <div id="multiDiff" class="multi-diff">+0m</div>
+            <div class="multi-racer racer-opp">
+              <span class="racer-dot dot-opp"></span>
+              <span id="multiOppName" class="racer-name">OPPONENT</span>
+              <span id="multiOppDist" class="racer-dist">0m</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Emote Bar -->
+        <div class="emote-bar">
+          <button class="emote-btn" data-emoji="🏎️💨" title="Speed">🏎️</button>
+          <button class="emote-btn" data-emoji="🔥" title="Fire">🔥</button>
+          <button class="emote-btn" data-emoji="💥" title="Crash">💥</button>
+          <button class="emote-btn" data-emoji="🏆" title="Trophy">🏆</button>
+          <button class="emote-btn" data-emoji="👋" title="Wave">👋</button>
+        </div>
+
+        <!-- Touch Controls for Mobile & Tablets -->
+        <div class="touch-pedals">
+          <button id="touchBrake" class="pedal-btn pedal-brake" aria-label="Brake and Lean Forward">
+            <div class="pedal-label">BRAKE</div>
+            <div class="pedal-sub">◀ LEAN</div>
+          </button>
+          <button id="touchGas" class="pedal-btn pedal-gas" aria-label="Gas and Lean Back">
+            <div class="pedal-label">GAS</div>
+            <div class="pedal-sub">LEAN ▶</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3-2-1 GO Countdown Overlay -->
+      <div id="countdownOverlay" class="countdown-overlay hidden">
+        <div id="countdownNumber" class="countdown-number">3</div>
+      </div>
+    </main>
+
+    <!-- Bottom Controls & Footer Attribution Bar -->
+    <footer class="game-footer">
+      <div class="footer-left">
+        <div class="controls-guide">
+          <span class="guide-tag">CONTROLS:</span>
+          <span class="guide-key">D / ➔ / SPACE</span> Gas &amp; Lean Back
+          <span class="guide-sep">•</span>
+          <span class="guide-key">A / ⬅</span> Brake &amp; Lean Fwd
+          <span class="guide-sep">•</span>
+          <span class="guide-key">R</span> Restart
+        </div>
+      </div>
+      <div class="footer-right">
+        <span class="creator-badge">Engineered with ❤️ by <strong>Raghav Parashar</strong></span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 1: DRIVER SIGN UP & CAR ENGRAVING BUREAU -->
+  <!-- ======================================================== -->
+  <div id="registrationModal" class="modal-backdrop">
+    <div class="modal-card registration-card">
+      <div class="modal-banner">
+        <h2>DRIVER REGISTRATION</h2>
+        <span class="banner-sub">Engrave your custom signature onto your car chassis</span>
+      </div>
+
+      <div class="registration-body">
+        <!-- Live Interactive Car Visualizer -->
+        <div class="car-preview-container">
+          <div class="preview-badge">LIVE ENGRAVING PREVIEW</div>
+          <canvas id="carPreviewCanvas" width="340" height="150"></canvas>
+          <p class="preview-hint">Your engraved name appears on the car door during all single &amp; multiplayer races</p>
+        </div>
+
+        <!-- Sign-Up Input Fields -->
+        <div class="form-section">
+          <div class="form-group">
+            <label for="inputDriverName">
+              <span class="label-title">DRIVER SIGNATURE / NAME</span>
+              <span class="label-note">Max 14 characters</span>
+            </label>
+            <div class="input-wrapper">
+              <input type="text" id="inputDriverName" maxlength="14" placeholder="Enter your name..." value="RAGHAV" autocomplete="off" spellcheck="false">
+              <span class="input-icon">✍️</span>
+            </div>
+          </div>
+
+          <!-- Livery / Color Selection -->
+          <div class="form-group">
+            <label><span class="label-title">CAR LIVERY &amp; PLATE STYLE</span></label>
+            <div class="livery-grid">
+              <button type="button" class="livery-option selected" data-livery="blue" title="Royal Speedster">
+                <span class="swatch" style="background:#2B55FF; border-color:#FFB703;"></span>
+                <span class="livery-name">Royal Blue</span>
+              </button>
+              <button type="button" class="livery-option" data-livery="red" title="Coral Blaze">
+                <span class="swatch" style="background:#FF4742; border-color:#0F1322;"></span>
+                <span class="livery-name">Coral Blaze</span>
+              </button>
+              <button type="button" class="livery-option" data-livery="yellow" title="Marigold Gold">
+                <span class="swatch" style="background:#FFB703; border-color:#2B55FF;"></span>
+                <span class="livery-name">Marigold</span>
+              </button>
+              <button type="button" class="livery-option" data-livery="green" title="Emerald Drift">
+                <span class="swatch" style="background:#00D06C; border-color:#0F1322;"></span>
+                <span class="livery-name">Emerald</span>
+              </button>
+              <button type="button" class="livery-option" data-livery="dark" title="Stealth Onyx">
+                <span class="swatch" style="background:#1A1E30; border-color:#FF4742;"></span>
+                <span class="livery-name">Stealth</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btnSaveAndStart" class="flat-btn flat-btn-primary flat-btn-large">
+          <span>ENGRAVE &amp; START RACING</span>
+          <span class="btn-arrow">➔</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 2: PEERJS MULTIPLAYER LOBBY -->
+  <!-- ======================================================== -->
+  <div id="multiplayerModal" class="modal-backdrop hidden">
+    <div class="modal-card multiplayer-card">
+      <button class="modal-close" aria-label="Close modal">✕</button>
+      
+      <div class="modal-banner banner-accent">
+        <h2>MULTIPLAYER RACING</h2>
+        <span class="banner-sub">Real-Time WebRTC Peer-to-Peer 1v1 Race</span>
+      </div>
+
+      <div class="multiplayer-body">
+        <p class="multi-explainer">
+          Race head-to-head on the <strong>identical endless hill terrain</strong>! Both drivers see each other live, with custom engraved names and real-time distance stats.
+        </p>
+
+        <div class="multiplayer-options">
+          <!-- Option A: Host a Race -->
+          <div class="multi-box host-box">
+            <h3>HOST A RACE</h3>
+            <p>Generate a private room code and invite your friend.</p>
+            <button id="btnCreateRoom" class="flat-btn flat-btn-primary full-width">CREATE NEW ROOM</button>
+
+            <div id="activeRoomPanel" class="active-room-panel hidden">
+              <div class="room-code-display">
+                <span class="room-code-label">YOUR ROOM CODE</span>
+                <span id="displayRoomCode" class="room-code-text">FLAT-XXXX</span>
+              </div>
+              <button id="btnCopyInvite" class="flat-btn flat-btn-secondary full-width">COPY INVITE LINK</button>
+            </div>
+          </div>
+
+          <div class="multi-divider"><span>OR</span></div>
+
+          <!-- Option B: Join a Race -->
+          <div class="multi-box join-box">
+            <h3>JOIN FRIEND'S RACE</h3>
+            <p>Enter the 4-letter room code shared by your friend.</p>
+            <div class="input-wrapper">
+              <input type="text" id="inputRoomCode" placeholder="e.g. FLAT-8291" maxlength="12" uppercase autocomplete="off">
+            </div>
+            <button id="btnJoinRoom" class="flat-btn flat-btn-accent full-width">JOIN RACE ROOM</button>
+          </div>
+        </div>
+
+        <div class="multi-status-bar">
+          <span class="status-pulse"></span>
+          <span id="multiStatusText">Multiplayer ready. Host or join a room above.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 3: GAME OVER & SUMMARY -->
+  <!-- ======================================================== -->
+  <div id="gameOverModal" class="modal-backdrop hidden">
+    <div class="modal-card gameover-card">
+      <div class="modal-banner banner-danger">
+        <h2 id="goTitle">RACE OVER</h2>
+        <span id="goReason" class="banner-sub">Driver head touched the ground</span>
+      </div>
+
+      <div class="gameover-body">
+        <!-- Single Player Stats -->
+        <div class="stats-summary-grid">
+          <div class="summary-tile">
+            <span class="tile-label">DISTANCE</span>
+            <span id="goDistance" class="tile-val">0m</span>
+          </div>
+          <div class="summary-tile">
+            <span class="tile-label">TOTAL SCORE</span>
+            <span id="goScore" class="tile-val score-gold">0</span>
+          </div>
+        </div>
+
+        <!-- Multiplayer Match Outcome (when racing a peer) -->
+        <div id="goMultiSummary" class="multi-summary-box hidden">
+          <div id="goWinnerBanner" class="winner-banner">YOU WON!</div>
+          <div class="multi-comparison">
+            <span id="goOpponentDist">Opponent reached: 180m</span>
+          </div>
+        </div>
+
+        <div class="gameover-actions">
+          <button id="btnPlayAgain" class="flat-btn flat-btn-primary flat-btn-large">
+            <span>RACE AGAIN</span> 🔄
+          </button>
+          <button id="btnRematch" class="flat-btn flat-btn-accent flat-btn-large">
+            <span>MULTIPLAYER REMATCH</span> ⚡
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/audio.js"></script>
+  <script src="js/terrain.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/car.js"></script>
+  <script src="js/multiplayer.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

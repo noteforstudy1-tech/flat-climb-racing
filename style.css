@@ -1,0 +1,1046 @@
+/**
+ * Flat Climb Racing — Stylesheet
+ * Bauhaus & Swiss Flat Design aesthetic matching the reference image.
+ * Author: Raghav Parashar
+ */
+
+:root {
+  --color-blue: #2B55FF;
+  --color-red: #FF4742;
+  --color-yellow: #FFB703;
+  --color-green: #00D06C;
+  --color-dark: #0F111E;
+  --color-dark-surface: #171A2E;
+  --color-white: #FFFFFF;
+  --color-light-bg: #F0F2F8;
+
+  --border-thick: 3px solid var(--color-dark);
+  --border-medium: 2px solid var(--color-dark);
+  --shadow-flat: 4px 4px 0px var(--color-dark);
+  --shadow-flat-sm: 2px 2px 0px var(--color-dark);
+  --shadow-flat-lg: 6px 6px 0px var(--color-dark);
+
+  --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Space Grotesk', monospace, sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--color-dark);
+  font-family: var(--font-main);
+  color: var(--color-white);
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+/* ======================================================== */
+/* 1. OUTER BAUHAUS CONTAINER FRAME */
+/* ======================================================== */
+.bauhaus-frame {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  background: var(--color-dark);
+}
+
+/* ======================================================== */
+/* 2. HEADER */
+/* ======================================================== */
+.game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--color-dark-surface);
+  border: var(--border-medium);
+  border-radius: 16px;
+  box-shadow: var(--shadow-flat);
+  margin-bottom: 10px;
+  z-index: 10;
+}
+
+.brand-cluster {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo-badge {
+  background: var(--color-yellow);
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: var(--border-medium);
+  box-shadow: var(--shadow-flat-sm);
+}
+
+.logo-badge h1 {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: var(--color-dark);
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.author-tag {
+  background: var(--color-blue);
+  color: var(--color-white);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1.5px solid var(--color-dark);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ======================================================== */
+/* 3. BUTTONS (Bauhaus Neo-Brutalist Flat) */
+/* ======================================================== */
+.flat-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: var(--border-medium);
+  box-shadow: var(--shadow-flat-sm);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+
+.flat-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px var(--color-dark);
+}
+
+.flat-btn-primary {
+  background: var(--color-yellow);
+  color: var(--color-dark);
+}
+.flat-btn-primary:hover {
+  background: #ffc21a;
+}
+
+.flat-btn-secondary {
+  background: var(--color-white);
+  color: var(--color-dark);
+}
+.flat-btn-secondary:hover {
+  background: #f0f0f0;
+}
+
+.flat-btn-accent {
+  background: var(--color-green);
+  color: var(--color-dark);
+}
+.flat-btn-accent:hover {
+  background: #17e07e;
+}
+
+.flat-btn-danger {
+  background: var(--color-red);
+  color: var(--color-white);
+}
+
+.flat-btn-icon {
+  padding: 6px 10px;
+  font-size: 1.05rem;
+  background: var(--color-white);
+}
+
+.flat-btn-large {
+  padding: 14px 24px;
+  font-size: 1rem;
+  font-weight: 900;
+  border-radius: 12px;
+  box-shadow: var(--shadow-flat);
+}
+
+.full-width {
+  width: 100%;
+}
+
+/* ======================================================== */
+/* 4. GAME VIEWPORT CONTAINER & CANVAS */
+/* ======================================================== */
+.game-viewport-container {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border-radius: 20px;
+  overflow: hidden;
+  border: var(--border-thick);
+  box-shadow: var(--shadow-flat-lg);
+  background: var(--color-blue);
+}
+
+#gameCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ======================================================== */
+/* 5. IN-GAME HEADS UP DISPLAY (HUD) */
+/* ======================================================== */
+.game-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* Allows canvas clicks through */
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hud-card {
+  pointer-events: auto;
+  background: var(--color-dark);
+  border: var(--border-medium);
+  border-radius: 12px;
+  box-shadow: var(--shadow-flat-sm);
+  padding: 8px 14px;
+  color: var(--color-white);
+}
+
+/* Top Left Stats (Distance & Score) */
+.hud-stats {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #94A3B8;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--color-white);
+}
+
+.score-gold {
+  color: var(--color-yellow);
+}
+
+.stat-divider {
+  width: 2px;
+  height: 28px;
+  background: #334155;
+}
+
+/* Top Right Fuel Tank */
+.hud-fuel {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 160px;
+}
+
+.fuel-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.fuel-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.fuel-track {
+  width: 100%;
+  height: 14px;
+  background: #1E293B;
+  border-radius: 6px;
+  border: 1.5px solid var(--color-dark);
+  overflow: hidden;
+  padding: 1.5px;
+}
+
+.fuel-fill {
+  width: 100%;
+  height: 100%;
+  background: var(--color-green);
+  border-radius: 4px;
+  transition: width 0.15s ease, background-color 0.25s ease;
+}
+
+.fuel-warning {
+  background: var(--color-red) !important;
+  animation: pulseWarning 0.5s infinite alternate;
+}
+
+@keyframes pulseWarning {
+  from { opacity: 0.5; }
+  to { opacity: 1.0; }
+}
+
+/* Multiplayer Live Split Bar */
+.hud-multiplayer {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 17, 30, 0.95);
+  backdrop-filter: blur(4px);
+  padding: 6px 16px;
+}
+
+.multi-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.multi-racer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.racer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.dot-you { background: var(--color-green); }
+.dot-opp { background: var(--color-red); }
+
+.racer-name {
+  color: #CBD5E1;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.racer-dist {
+  color: var(--color-white);
+  font-weight: 900;
+}
+
+.multi-diff {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 900;
+  padding: 2px 6px;
+  background: #1E293B;
+  border-radius: 4px;
+}
+
+/* Emote Bar */
+.emote-bar {
+  position: absolute;
+  left: 14px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.emote-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--color-white);
+  border: var(--border-medium);
+  box-shadow: var(--shadow-flat-sm);
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.emote-btn:active {
+  transform: scale(0.9);
+}
+
+/* Touch Pedals for Mobile */
+.touch-pedals {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 24px;
+  pointer-events: none;
+}
+
+.pedal-btn {
+  pointer-events: auto;
+  width: 110px;
+  height: 80px;
+  border-radius: 18px;
+  border: var(--border-thick);
+  box-shadow: var(--shadow-flat);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: none;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.pedal-btn.active {
+  transform: translate(3px, 3px);
+  box-shadow: 0px 0px 0px var(--color-dark);
+}
+
+.pedal-brake {
+  background: var(--color-red);
+  color: var(--color-white);
+}
+
+.pedal-gas {
+  background: var(--color-green);
+  color: var(--color-dark);
+}
+
+.pedal-label {
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.pedal-sub {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  margin-top: 4px;
+  opacity: 0.85;
+}
+
+/* ======================================================== */
+/* 6. COUNTDOWN OVERLAY */
+/* ======================================================== */
+.countdown-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 17, 30, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 50;
+  pointer-events: none;
+}
+
+.countdown-number {
+  font-family: var(--font-mono);
+  font-size: 6rem;
+  font-weight: 900;
+  color: var(--color-yellow);
+  text-shadow: 6px 6px 0px var(--color-dark);
+  animation: popScale 0.75s ease infinite;
+}
+
+@keyframes popScale {
+  0% { transform: scale(0.6); opacity: 0; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1.0); opacity: 1; }
+}
+
+/* ======================================================== */
+/* 7. FOOTER */
+/* ======================================================== */
+.game-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: var(--color-dark-surface);
+  border: var(--border-medium);
+  border-radius: 14px;
+  box-shadow: var(--shadow-flat);
+  margin-top: 10px;
+  font-size: 0.82rem;
+}
+
+.controls-guide {
+  color: #94A3B8;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.guide-tag {
+  color: var(--color-yellow);
+  font-weight: 900;
+  margin-right: 4px;
+}
+
+.guide-key {
+  color: var(--color-white);
+  font-weight: 800;
+  background: #1E293B;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #334155;
+}
+
+.guide-sep {
+  margin: 0 6px;
+  color: #475569;
+}
+
+.creator-badge {
+  color: #E2E8F0;
+}
+
+.creator-badge strong {
+  color: var(--color-yellow);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ======================================================== */
+/* 8. MODALS (Registration, Multiplayer, Game Over) */
+/* ======================================================== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 30, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+
+.modal-backdrop.hidden {
+  display: none !important;
+}
+
+.modal-card {
+  position: relative;
+  background: var(--color-dark);
+  border: var(--border-thick);
+  border-radius: 24px;
+  box-shadow: var(--shadow-flat-lg);
+  width: 100%;
+  max-width: 520px;
+  overflow: hidden;
+  animation: modalPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes modalPop {
+  0% { transform: scale(0.92); opacity: 0; }
+  100% { transform: scale(1.0); opacity: 1; }
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color-white);
+  border: var(--border-medium);
+  box-shadow: var(--shadow-flat-sm);
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--color-dark);
+  cursor: pointer;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-banner {
+  background: var(--color-yellow);
+  padding: 18px 24px;
+  border-bottom: var(--border-thick);
+  color: var(--color-dark);
+}
+
+.banner-accent {
+  background: var(--color-blue);
+  color: var(--color-white);
+}
+
+.banner-danger {
+  background: var(--color-red);
+  color: var(--color-white);
+}
+
+.modal-banner h2 {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+}
+
+.banner-sub {
+  font-size: 0.82rem;
+  font-weight: 600;
+  opacity: 0.9;
+  display: block;
+  margin-top: 3px;
+}
+
+/* Registration Card Body */
+.registration-body {
+  padding: 20px 24px;
+}
+
+.car-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #080A12;
+  border: var(--border-medium);
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 20px;
+}
+
+.preview-badge {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 900;
+  background: var(--color-yellow);
+  color: var(--color-dark);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+#carPreviewCanvas {
+  width: 100%;
+  max-width: 340px;
+  height: 130px;
+  border-radius: 10px;
+  border: 1.5px solid #1E293B;
+}
+
+.preview-hint {
+  font-size: 0.72rem;
+  color: #94A3B8;
+  margin-top: 6px;
+  text-align: center;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.label-title {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #E2E8F0;
+  letter-spacing: 0.3px;
+}
+
+.label-note {
+  font-size: 0.72rem;
+  color: #94A3B8;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-wrapper input {
+  width: 100%;
+  background: #171A2E;
+  border: var(--border-medium);
+  border-radius: 10px;
+  padding: 12px 42px 12px 14px;
+  color: var(--color-white);
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.input-wrapper input:focus {
+  border-color: var(--color-yellow);
+}
+
+.input-icon {
+  position: absolute;
+  right: 14px;
+  font-size: 1.1rem;
+}
+
+/* Livery Palette Selector */
+.livery-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.livery-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #171A2E;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 8px 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.livery-option:hover {
+  background: #232845;
+}
+
+.livery-option.selected {
+  border-color: var(--color-yellow);
+  background: #232845;
+  box-shadow: 0 0 0 2px var(--color-yellow);
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid;
+  margin-bottom: 5px;
+}
+
+.livery-name {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #CBD5E1;
+}
+
+.modal-footer {
+  padding: 0 24px 24px 24px;
+}
+
+/* Multiplayer Lobby Body */
+.multiplayer-body {
+  padding: 20px 24px;
+}
+
+.multi-explainer {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #CBD5E1;
+  margin-bottom: 18px;
+}
+
+.multiplayer-options {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: stretch;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.multi-box {
+  background: #171A2E;
+  border: var(--border-medium);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.multi-box h3 {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.multi-box p {
+  font-size: 0.74rem;
+  color: #94A3B8;
+  margin-bottom: 12px;
+}
+
+.multi-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: #64748B;
+}
+
+.active-room-panel {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #334155;
+}
+
+.room-code-display {
+  background: var(--color-dark);
+  border: var(--border-medium);
+  border-radius: 8px;
+  padding: 8px;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.room-code-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #94A3B8;
+  display: block;
+}
+
+.room-code-text {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--color-yellow);
+  letter-spacing: 1.5px;
+}
+
+.multi-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #080A12;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: #94A3B8;
+}
+
+.status-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-green);
+  animation: pulseDot 1s infinite alternate;
+}
+
+@keyframes pulseDot {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(1.2); opacity: 1; }
+}
+
+/* Game Over Card */
+.gameover-body {
+  padding: 24px;
+}
+
+.stats-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.summary-tile {
+  background: #171A2E;
+  border: var(--border-medium);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+
+.tile-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #94A3B8;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.tile-val {
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  font-weight: 900;
+}
+
+.multi-summary-box {
+  background: #171A2E;
+  border: 2px dashed var(--color-yellow);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.winner-banner {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--color-yellow);
+  margin-bottom: 4px;
+}
+
+.multi-comparison {
+  font-size: 0.8rem;
+  color: #CBD5E1;
+}
+
+.gameover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ======================================================== */
+/* 9. RESPONSIVE BREAKPOINTS (Mobile & Tablet) */
+/* ======================================================== */
+@media (max-width: 768px) {
+  .bauhaus-frame {
+    padding: 6px 8px;
+  }
+
+  .game-header {
+    padding: 6px 8px;
+    margin-bottom: 6px;
+  }
+
+  .logo-badge h1 {
+    font-size: 1rem;
+  }
+
+  .author-tag {
+    display: none; /* Keep clean on small screens; shown in footer */
+  }
+
+  .btn-text {
+    display: none; /* Show icon only in header on mobile */
+  }
+
+  .flat-btn {
+    padding: 6px 10px;
+  }
+
+  .game-footer {
+    padding: 6px 10px;
+    margin-top: 6px;
+  }
+
+  .controls-guide {
+    display: none; /* Hide keyboard controls on mobile */
+  }
+
+  .hud-stats {
+    top: 8px;
+    left: 8px;
+    padding: 6px 10px;
+  }
+
+  .hud-fuel {
+    top: 8px;
+    right: 8px;
+    width: 110px;
+    padding: 6px 10px;
+  }
+
+  .hud-multiplayer {
+    top: 56px;
+    padding: 4px 10px;
+  }
+
+  .pedal-btn {
+    width: 90px;
+    height: 72px;
+  }
+
+  .multiplayer-options {
+    grid-template-columns: 1fr;
+  }
+
+  .multi-divider {
+    padding: 4px 0;
+  }
+}
+
+@media (max-height: 520px) {
+  /* Ultra-compact landscape on phones */
+  .game-header, .game-footer {
+    display: none;
+  }
+  .bauhaus-frame {
+    padding: 0;
+  }
+  .game-viewport-container {
+    border-radius: 0;
+    border: none;
+  }
+  .touch-pedals {
+    bottom: 10px;
+    padding: 0 16px;
+  }
+}
